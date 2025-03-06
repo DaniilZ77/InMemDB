@@ -5,7 +5,8 @@ import (
 )
 
 const (
-	allowedSymbols = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	symbols     = "!\"#$%&'()*+,-./:;<=>?@[\\]^_`{|}~abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	whitespaces = " \t\n\r"
 )
 
 type Parser struct{}
@@ -44,18 +45,22 @@ func isIn(b byte, s string) bool {
 	return false
 }
 
-func (p *Parser) tokenize(source string) []token {
+func (p *Parser) tokenize(source string) ([]token, error) {
 	sourceLen := len(source)
 	var pos, prevPos int
 	var value string
 	var tokens []token
 	for {
-		for ; pos < sourceLen && !isIn(source[pos], allowedSymbols); pos++ {
+		for ; pos < sourceLen && isIn(source[pos], whitespaces); pos++ {
 			prevPos++
 		}
 
+		if pos < sourceLen && !isIn(source[pos], symbols) {
+			return nil, models.ErrInvalidCommand
+		}
+
 		pos++
-		for ; pos < sourceLen && isIn(source[pos], allowedSymbols); pos++ {
+		for ; pos < sourceLen && isIn(source[pos], symbols); pos++ {
 		}
 
 		if pos >= sourceLen {
@@ -83,11 +88,14 @@ func (p *Parser) tokenize(source string) []token {
 		value: "EOF",
 	})
 
-	return tokens
+	return tokens, nil
 }
 
 func (p *Parser) Parse(source string) (*models.Command, error) {
-	tokens := p.tokenize(source)
+	tokens, err := p.tokenize(source)
+	if err != nil {
+		return nil, err
+	}
 
 	var command models.Command
 	if err := p.parseOperation(&command, tokens); err != nil {
@@ -110,7 +118,7 @@ func (p *Parser) parseOperation(command *models.Command, tokens []token) error {
 		command.Type = models.DEL
 		return p.parseArg(command, tokens[1:])
 	default:
-		return models.ErrUnknownCommand
+		return models.ErrInvalidCommand
 	}
 }
 
@@ -120,7 +128,7 @@ func (p *Parser) parseArg(command *models.Command, tokens []token) error {
 	case argument:
 		command.Args = append(command.Args, arg.value)
 	default:
-		return models.ErrUnknownCommand
+		return models.ErrInvalidCommand
 	}
 
 	return p.parseEof(tokens[1:])
@@ -128,7 +136,7 @@ func (p *Parser) parseArg(command *models.Command, tokens []token) error {
 
 func (p *Parser) parseArgs(command *models.Command, tokens []token) error {
 	if len(tokens) < 2 {
-		return models.ErrUnknownCommand
+		return models.ErrInvalidCommand
 	}
 
 	arg1, arg2 := tokens[0], tokens[1]
@@ -136,7 +144,7 @@ func (p *Parser) parseArgs(command *models.Command, tokens []token) error {
 		command.Args = append(command.Args, arg1.value, arg2.value)
 		return p.parseExtraArgs(command, tokens[2:])
 	} else {
-		return models.ErrUnknownCommand
+		return models.ErrInvalidCommand
 	}
 }
 
@@ -153,5 +161,5 @@ func (p *Parser) parseEof(tokens []token) error {
 		return nil
 	}
 
-	return models.ErrUnknownCommand
+	return models.ErrInvalidCommand
 }

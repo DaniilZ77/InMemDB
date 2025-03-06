@@ -3,5 +3,5 @@ package models
 import "errors"
 
 var (
-	ErrUnknownCommand = errors.New("unknown command")
+	ErrInvalidCommand = errors.New("unknown command")
 )
