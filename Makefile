@@ -6,3 +6,6 @@ lint:
 
 test:
 	go test -v ./...
+
+build:
+	go build -o bin/db ./cmd/db
