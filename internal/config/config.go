@@ -9,9 +9,9 @@ import (
 )
 
 type Config struct {
-	Engine  Engine  `yaml:"engine"`
-	Network Network `yaml:"network"`
-	Logging Logging `yaml:"logging"`
+	Engine   Engine  `yaml:"engine"`
+	Network  Network `yaml:"network"`
+	LogLevel string  `yaml:"log_level"`
 }
 
 type Engine struct {
@@ -23,10 +23,6 @@ type Network struct {
 	MaxConnections int           `yaml:"max_connections"`
 	MaxMessageSize int           `yaml:"max_message_size"`
 	IdleTimeout    time.Duration `yaml:"idle_timeout"`
-}
-
-type Logging struct {
-	Level string `yaml:"level"`
 }
 
 func New() *Config {

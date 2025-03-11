@@ -24,10 +24,6 @@ type Command struct {
 	Args []string
 }
 
-var (
-	ErrInvalidCommand = errors.New("invalid command")
-)
-
 func (ct commandType) argsCount() int {
 	switch ct {
 	case SET:
@@ -36,3 +32,7 @@ func (ct commandType) argsCount() int {
 		return defaultArgsCount
 	}
 }
+
+var (
+	ErrInvalidCommand = errors.New("invalid command")
+)

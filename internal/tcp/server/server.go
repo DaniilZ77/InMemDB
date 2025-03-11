@@ -1,8 +1,11 @@
 package server
 
 import (
+	"errors"
+	"fmt"
 	"log/slog"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/DaniilZ77/InMemDB/internal/config"
@@ -14,6 +17,10 @@ type Server struct {
 	log         *slog.Logger
 	bufSize     int
 	idleTimeout time.Duration
+	maxClients  int
+
+	mu      sync.Mutex
+	clients int
 }
 
 type Database interface {
@@ -25,13 +32,13 @@ func New(
 	database Database,
 	log *slog.Logger) (*Server, error) {
 	if cfg == nil {
-		panic("config is nil")
+		return nil, errors.New("config is nil")
 	}
 	if database == nil {
-		panic("database is nil")
+		return nil, errors.New("database is nil")
 	}
 	if log == nil {
-		panic("logger is nil")
+		return nil, errors.New("logger is nil")
 	}
 
 	lst, err := net.Listen("tcp", cfg.Network.Address)
@@ -46,6 +53,7 @@ func New(
 		log:         log,
 		bufSize:     cfg.Network.MaxMessageSize,
 		idleTimeout: cfg.Network.IdleTimeout,
+		maxClients:  cfg.Network.MaxConnections,
 	}, nil
 }
 
@@ -56,21 +64,16 @@ func (s *Server) Run() error {
 			return err
 		}
 
-		go s.handler(conn)
+		go s.recoverer(s.clientsLimiter(s.handler))(conn)
 	}
 }
 
 func (s *Server) handler(conn net.Conn) {
-	defer func() {
-		if v := recover(); v != nil {
-			s.log.Error("panic recovered", slog.Any("error", v))
-		}
-		conn.Close()
-	}()
+	defer conn.Close()
 
 	var err error
 	var n int
-	var response string
+	var resp string
 	buf := make([]byte, s.bufSize)
 	for {
 		err = conn.SetReadDeadline(time.Now().Add(s.idleTimeout))
@@ -89,8 +92,8 @@ func (s *Server) handler(conn net.Conn) {
 			break
 		}
 
-		response = s.database.Execute(string(buf[:n]))
-		if _, err = conn.Write([]byte(response + "\n")); err != nil {
+		resp = s.database.Execute(string(buf[:n]))
+		if _, err = fmt.Fprintln(conn, resp); err != nil {
 			s.log.Error("write failure", slog.Any("error", err))
 			break
 		}

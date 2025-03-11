@@ -3,7 +3,7 @@ package app
 import (
 	"log/slog"
 
-	compute "github.com/DaniilZ77/InMemDB/internal/compute/parser"
+	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
 	"github.com/DaniilZ77/InMemDB/internal/storage"
 	"github.com/DaniilZ77/InMemDB/internal/storage/engine"
 
@@ -19,9 +19,17 @@ func New(
 	cfg *config.Config,
 	log *slog.Logger) *App {
 
-	parser := compute.NewParser(log)
+	parser, err := parser.NewParser(log)
+	if err != nil {
+		panic("failed to init parser: " + err.Error())
+	}
+
 	engine := engine.NewEngine()
-	database := storage.NewDatabase(parser, engine, log)
+	database, err := storage.NewDatabase(parser, engine, log)
+	if err != nil {
+		panic("failed to init database: " + err.Error())
+	}
+
 	server, err := server.New(cfg, database, log)
 	if err != nil {
 		panic("failed to init server: " + err.Error())

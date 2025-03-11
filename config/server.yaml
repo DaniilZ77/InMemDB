@@ -5,5 +5,4 @@ network:
   max_connections: 100
   max_message_size: 4000 # in bytes
   idle_timeout: 5m
-logging:
-  level: "info"
+log_level: "info"

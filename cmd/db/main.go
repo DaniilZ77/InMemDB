@@ -23,7 +23,7 @@ func newLogger(cfg *config.Config) *slog.Logger {
 	var log *slog.Logger
 	opts := &slog.HandlerOptions{AddSource: true}
 
-	switch strings.ToUpper(cfg.Logging.Level) {
+	switch strings.ToUpper(cfg.LogLevel) {
 	case slog.LevelDebug.String():
 		opts.Level = slog.LevelDebug
 		log = slog.New(slog.NewTextHandler(os.Stdout, opts))

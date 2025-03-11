@@ -2,13 +2,14 @@ package storage
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 
 	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
 	"github.com/DaniilZ77/InMemDB/internal/storage/engine"
 )
 
-type Parser interface {
+type Compute interface {
 	Parse(source string) (*parser.Command, error)
 }
 
@@ -19,33 +20,33 @@ type Engine interface {
 }
 
 type Database struct {
-	parser Parser
-	engine Engine
-	log    *slog.Logger
+	compute Compute
+	engine  Engine
+	log     *slog.Logger
 }
 
-func NewDatabase(parser Parser, engine Engine, log *slog.Logger) *Database {
-	if parser == nil {
-		panic("parser is nil")
+func NewDatabase(compute Compute, engine Engine, log *slog.Logger) (*Database, error) {
+	if compute == nil {
+		return nil, errors.New("compute is nil")
 	}
 	if engine == nil {
-		panic("engine is nil")
+		return nil, errors.New("engine is nil")
 	}
 	if log == nil {
-		panic("logger is nil")
+		return nil, errors.New("logger is nil")
 	}
 
 	return &Database{
-		parser: parser,
-		engine: engine,
-		log:    log,
-	}
+		compute: compute,
+		engine:  engine,
+		log:     log,
+	}, nil
 }
 
 func (d *Database) Execute(source string) string {
-	command, err := d.parser.Parse(source)
+	command, err := d.compute.Parse(source)
 	if err != nil {
-		return "ERROR"
+		return fmt.Sprintf("ERROR(%s)", err.Error())
 	}
 
 	switch command.Type {
@@ -58,7 +59,7 @@ func (d *Database) Execute(source string) string {
 			if errors.Is(err, engine.ErrKeyNotFound) {
 				return "NIL"
 			}
-			return "ERROR"
+			return "ERROR(internal error)"
 		}
 		return *res
 	case parser.DEL:
@@ -66,5 +67,5 @@ func (d *Database) Execute(source string) string {
 		return "OK"
 	}
 
-	return "ERROR"
+	return "ERROR(internal error)"
 }

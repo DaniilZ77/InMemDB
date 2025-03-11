@@ -1,6 +1,7 @@
 package parser
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -10,12 +11,12 @@ type Parser struct {
 	log *slog.Logger
 }
 
-func NewParser(log *slog.Logger) *Parser {
+func NewParser(log *slog.Logger) (*Parser, error) {
 	if log == nil {
-		panic("logger is nil")
+		return nil, errors.New("logger is nil")
 	}
 
-	return &Parser{log: log}
+	return &Parser{log: log}, nil
 }
 
 func (p *Parser) Parse(source string) (*Command, error) {
@@ -36,8 +37,8 @@ func (p *Parser) Parse(source string) (*Command, error) {
 
 func (p *Parser) parseArgs(commandType commandType, tokens []string) (*Command, error) {
 	if len(tokens) != commandType.argsCount() {
-		p.log.Warn("bad args", slog.Any("args", tokens))
-		return nil, fmt.Errorf("%w: bad args", ErrInvalidCommand)
+		p.log.Warn("bad amount of args", slog.Int("args", len(tokens)), slog.Int("expected", commandType.argsCount()))
+		return nil, fmt.Errorf("%w: bad amount of args", ErrInvalidCommand)
 	}
 
 	return &Command{
