@@ -1,3 +1,9 @@
-db_port: :1234
-env: local
-buffer_size: 250
+engine:
+  type: "in_memory"
+network:
+  address: "127.0.0.1:3223"
+  max_connections: 100
+  max_message_size: 4000 # in bytes
+  idle_timeout: 5m
+logging:
+  level: "info"

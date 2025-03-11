@@ -3,14 +3,30 @@ package config
 import (
 	"flag"
 	"os"
+	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
 )
 
 type Config struct {
-	DbPort  string `yaml:"db_port"`
-	Env     string `yaml:"env"`
-	BufSize int    `yaml:"buffer_size"`
+	Engine  Engine  `yaml:"engine"`
+	Network Network `yaml:"network"`
+	Logging Logging `yaml:"logging"`
+}
+
+type Engine struct {
+	Type string `yaml:"type"`
+}
+
+type Network struct {
+	Address        string        `yaml:"address"`
+	MaxConnections int           `yaml:"max_connections"`
+	MaxMessageSize int           `yaml:"max_message_size"`
+	IdleTimeout    time.Duration `yaml:"idle_timeout"`
+}
+
+type Logging struct {
+	Level string `yaml:"level"`
 }
 
 func New() *Config {

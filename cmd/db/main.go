@@ -3,19 +3,15 @@ package main
 import (
 	"log/slog"
 	"os"
+	"strings"
 
 	"github.com/DaniilZ77/InMemDB/internal/app"
 	"github.com/DaniilZ77/InMemDB/internal/config"
 )
 
-const (
-	envLocal = "local"
-	envProd  = "prod"
-)
-
 func main() {
 	cfg := config.New()
-	log := newLogger(cfg.Env)
+	log := newLogger(cfg)
 
 	app := app.New(cfg, log)
 	if err := app.Run(); err != nil {
@@ -23,21 +19,25 @@ func main() {
 	}
 }
 
-func newLogger(env string) *slog.Logger {
+func newLogger(cfg *config.Config) *slog.Logger {
 	var log *slog.Logger
-
 	opts := &slog.HandlerOptions{AddSource: true}
 
-	switch env {
-	case envLocal:
+	switch strings.ToUpper(cfg.Logging.Level) {
+	case slog.LevelDebug.String():
 		opts.Level = slog.LevelDebug
 		log = slog.New(slog.NewTextHandler(os.Stdout, opts))
-	case envProd:
+	case slog.LevelInfo.String():
 		opts.Level = slog.LevelInfo
 		log = slog.New(slog.NewJSONHandler(os.Stdout, opts))
+	case slog.LevelWarn.String():
+		opts.Level = slog.LevelWarn
+		log = slog.New(slog.NewJSONHandler(os.Stdout, opts))
+	case slog.LevelError.String():
+		opts.Level = slog.LevelError
+		log = slog.New(slog.NewJSONHandler(os.Stdout, opts))
 	default:
-		panic("unknown env")
+		panic("unknown log level")
 	}
-
 	return log
 }
