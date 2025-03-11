@@ -30,7 +30,7 @@ func New(
 		panic("failed to init database: " + err.Error())
 	}
 
-	server, err := server.New(cfg, database, log)
+	server, err := server.NewServer(cfg, database, log)
 	if err != nil {
 		panic("failed to init server: " + err.Error())
 	}

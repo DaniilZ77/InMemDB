@@ -8,7 +8,7 @@ import (
 
 func main() {
 	var address string
-	flag.StringVar(&address, "address", "", "server address")
+	flag.StringVar(&address, "address", "127.0.0.1:3223", "server address")
 
 	flag.Parse()
 

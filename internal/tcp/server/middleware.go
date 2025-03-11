@@ -16,6 +16,12 @@ func (s *Server) clientsLimiter(next func(conn net.Conn)) func(conn net.Conn) {
 		s.clients++
 		s.mu.Unlock()
 
+		defer func() {
+			s.mu.Lock()
+			s.clients--
+			s.mu.Unlock()
+		}()
+
 		s.log.Debug("amount of clients increased", slog.Int("clients", s.clients))
 
 		next(conn)
