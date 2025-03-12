@@ -15,7 +15,7 @@ type App struct {
 	server *server.Server
 }
 
-func New(
+func NewApp(
 	cfg *config.Config,
 	log *slog.Logger) *App {
 

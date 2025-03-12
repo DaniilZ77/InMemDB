@@ -21,7 +21,7 @@ type Network struct {
 	IdleTimeout    time.Duration `yaml:"idle_timeout" env-default:"5m"`
 }
 
-func New() *Config {
+func NewConfig() *Config {
 	configPath, ok := getConfigPath()
 	if !ok {
 		panic("config path is not set")

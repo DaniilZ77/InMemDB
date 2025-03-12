@@ -10,10 +10,10 @@ import (
 )
 
 func main() {
-	cfg := config.New()
+	cfg := config.NewConfig()
 	log := newLogger(cfg)
 
-	app := app.New(cfg, log)
+	app := app.NewApp(cfg, log)
 	if err := app.Run(); err != nil {
 		log.Error("failed to run app", slog.Any("error", err))
 	}
