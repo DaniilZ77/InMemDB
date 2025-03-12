@@ -15,7 +15,7 @@ type App struct {
 	server *server.Server
 }
 
-func New(
+func NewApp(
 	cfg *config.Config,
 	log *slog.Logger) *App {
 
@@ -30,7 +30,7 @@ func New(
 		panic("failed to init database: " + err.Error())
 	}
 
-	server, err := server.New(cfg, database, log)
+	server, err := server.NewServer(cfg, database, log)
 	if err != nil {
 		panic("failed to init server: " + err.Error())
 	}

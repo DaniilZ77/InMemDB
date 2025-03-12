@@ -9,23 +9,19 @@ import (
 )
 
 type Config struct {
-	Engine   Engine  `yaml:"engine"`
-	Network  Network `yaml:"network"`
-	LogLevel string  `yaml:"log_level"`
-}
-
-type Engine struct {
-	Type string `yaml:"type"`
+	EngineType string  `yaml:"engine_type" env-default:"in_memory"`
+	Network    Network `yaml:"network"`
+	LogLevel   string  `yaml:"log_level" env-default:"info"`
 }
 
 type Network struct {
-	Address        string        `yaml:"address"`
-	MaxConnections int           `yaml:"max_connections"`
-	MaxMessageSize int           `yaml:"max_message_size"`
-	IdleTimeout    time.Duration `yaml:"idle_timeout"`
+	Address        string        `yaml:"address" env-default:"127.0.0.1:3223"`
+	MaxConnections int           `yaml:"max_connections" env-default:"100"`
+	MaxMessageSize int           `yaml:"max_message_size" env-default:"4000"`
+	IdleTimeout    time.Duration `yaml:"idle_timeout" env-default:"5m"`
 }
 
-func New() *Config {
+func NewConfig() *Config {
 	configPath, ok := getConfigPath()
 	if !ok {
 		panic("config path is not set")

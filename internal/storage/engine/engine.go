@@ -5,7 +5,7 @@ import (
 )
 
 type Engine struct {
-	mu   sync.Mutex
+	mu   sync.RWMutex
 	data map[string]string
 }
 
@@ -16,9 +16,9 @@ func NewEngine() *Engine {
 }
 
 func (e *Engine) Get(key string) (*string, error) {
-	e.mu.Lock()
+	e.mu.RLock()
 	value, ok := e.data[key]
-	e.mu.Unlock()
+	e.mu.RUnlock()
 
 	if !ok {
 		return nil, ErrKeyNotFound

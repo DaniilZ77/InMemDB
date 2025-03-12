@@ -26,7 +26,7 @@ func (p *Parser) Parse(source string) (*Command, error) {
 		return nil, fmt.Errorf("%w: empty command", ErrInvalidCommand)
 	}
 
-	token := tokens[0]
+	token := strings.ToLower(tokens[0])
 	if commandType, ok := keywords[token]; !ok {
 		p.log.Warn("bad command type", slog.String("command type", token))
 		return nil, fmt.Errorf("%w: bad command type", ErrInvalidCommand)

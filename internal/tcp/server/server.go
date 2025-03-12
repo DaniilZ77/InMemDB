@@ -27,7 +27,7 @@ type Database interface {
 	Execute(source string) string
 }
 
-func New(
+func NewServer(
 	cfg *config.Config,
 	database Database,
 	log *slog.Logger) (*Server, error) {
