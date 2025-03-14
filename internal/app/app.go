@@ -5,7 +5,8 @@ import (
 
 	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
 	"github.com/DaniilZ77/InMemDB/internal/storage"
-	"github.com/DaniilZ77/InMemDB/internal/storage/engine"
+	"github.com/DaniilZ77/InMemDB/internal/storage/baseengine"
+	"github.com/DaniilZ77/InMemDB/internal/storage/shardedengine"
 
 	"github.com/DaniilZ77/InMemDB/internal/config"
 	"github.com/DaniilZ77/InMemDB/internal/tcp/server"
@@ -24,8 +25,18 @@ func NewApp(
 		panic("failed to init parser: " + err.Error())
 	}
 
-	engine := engine.NewEngine()
-	database, err := storage.NewDatabase(parser, engine, log)
+	var eng storage.Engine
+	if cfg.Engine.ShardsAmount == 1 {
+		eng = baseengine.NewEngine()
+	} else if cfg.Engine.ShardsAmount > 1 {
+		eng = shardedengine.NewShardedEngine(cfg.Engine.ShardsAmount, func() shardedengine.BaseEngine {
+			return baseengine.NewEngine()
+		})
+	} else {
+		panic("shards amount must be greater than 0")
+	}
+
+	database, err := storage.NewDatabase(parser, eng, log)
 	if err != nil {
 		panic("failed to init database: " + err.Error())
 	}
