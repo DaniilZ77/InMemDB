@@ -26,10 +26,10 @@ func NewApp(
 	}
 
 	var eng storage.Engine
-	if cfg.Engine.ShardsAmount == 1 {
+	if cfg.Engine.LogShardsAmount == 0 {
 		eng = baseengine.NewEngine()
-	} else if cfg.Engine.ShardsAmount > 1 {
-		eng = shardedengine.NewShardedEngine(cfg.Engine.ShardsAmount, func() shardedengine.BaseEngine {
+	} else if cfg.Engine.LogShardsAmount > 0 {
+		eng = shardedengine.NewShardedEngine(cfg.Engine.LogShardsAmount, func() shardedengine.BaseEngine {
 			return baseengine.NewEngine()
 		})
 	} else {

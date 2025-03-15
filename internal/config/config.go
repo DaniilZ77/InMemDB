@@ -22,8 +22,8 @@ type Network struct {
 }
 
 type Engine struct {
-	Type         string `yaml:"type" env-default:"in_memory"`
-	ShardsAmount int    `yaml:"shards_amount" env-default:"10"`
+	Type            string `yaml:"type" env-default:"in_memory"`
+	LogShardsAmount int    `yaml:"log_shards_amount" env-default:"3"`
 }
 
 func NewConfig() *Config {
