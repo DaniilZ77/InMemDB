@@ -15,24 +15,22 @@ func (_m *BaseEngine) Del(key string) {
 }
 
 // Get provides a mock function with given fields: key
-func (_m *BaseEngine) Get(key string) (*string, error) {
+func (_m *BaseEngine) Get(key string) (string, error) {
 	ret := _m.Called(key)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Get")
 	}
 
-	var r0 *string
+	var r0 string
 	var r1 error
-	if rf, ok := ret.Get(0).(func(string) (*string, error)); ok {
+	if rf, ok := ret.Get(0).(func(string) (string, error)); ok {
 		return rf(key)
 	}
-	if rf, ok := ret.Get(0).(func(string) *string); ok {
+	if rf, ok := ret.Get(0).(func(string) string); ok {
 		r0 = rf(key)
 	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*string)
-		}
+		r0 = ret.Get(0).(string)
 	}
 
 	if rf, ok := ret.Get(1).(func(string) error); ok {

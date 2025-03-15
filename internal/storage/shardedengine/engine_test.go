@@ -37,12 +37,12 @@ func TestGet_Success(t *testing.T) {
 	engine := NewShardedEngine(testLogShardsAmount, newBaseEngine(baseEngines))
 	expected := "Daniil"
 
-	baseEngines[engine.getHash("name")%(1<<testLogShardsAmount)].On("Get", "name").Return(&expected, nil).Once()
+	baseEngines[engine.getHash("name")%(1<<testLogShardsAmount)].On("Get", "name").Return(expected, nil).Once()
 
 	res, err := engine.Get("name")
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	assert.Equal(t, expected, *res)
+	assert.Equal(t, expected, res)
 }
 
 func TestGet_Fail(t *testing.T) {
@@ -51,7 +51,7 @@ func TestGet_Fail(t *testing.T) {
 	baseEngines := genBaseEngines(t, 1<<testLogShardsAmount)
 	engine := NewShardedEngine(testLogShardsAmount, newBaseEngine(baseEngines))
 
-	baseEngines[engine.getHash("name")%(1<<testLogShardsAmount)].On("Get", "name").Return(nil, errors.New("internal error")).Once()
+	baseEngines[engine.getHash("name")%(1<<testLogShardsAmount)].On("Get", "name").Return("", errors.New("internal error")).Once()
 
 	_, err := engine.Get("name")
 	assert.Error(t, err)

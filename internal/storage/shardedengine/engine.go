@@ -7,7 +7,7 @@ type ShardedEngine struct {
 
 //go:generate mockery --name BaseEngine
 type BaseEngine interface {
-	Get(key string) (*string, error)
+	Get(key string) (string, error)
 	Set(key, value string)
 	Del(key string)
 }
@@ -25,7 +25,7 @@ func NewShardedEngine(logSize int, newEngine func() BaseEngine) *ShardedEngine {
 	}
 }
 
-func (e *ShardedEngine) Get(key string) (*string, error) {
+func (e *ShardedEngine) Get(key string) (string, error) {
 	hash := e.getHash(key) & uint32(e.shardsAmount-1)
 	return e.engines[hash].Get(key)
 }

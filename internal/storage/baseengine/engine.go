@@ -5,38 +5,26 @@ import (
 )
 
 type Engine struct {
-	mu   sync.RWMutex
-	data map[string]string
+	data sync.Map
 }
 
 func NewEngine() *Engine {
-	return &Engine{
-		data: make(map[string]string),
-	}
+	return &Engine{}
 }
 
-func (e *Engine) Get(key string) (*string, error) {
-	e.mu.RLock()
-	value, ok := e.data[key]
-	e.mu.RUnlock()
-
+func (e *Engine) Get(key string) (string, error) {
+	value, ok := e.data.Load(key)
 	if !ok {
-		return nil, ErrKeyNotFound
+		return "", ErrKeyNotFound
 	}
 
-	return &value, nil
+	return value.(string), nil
 }
 
 func (e *Engine) Set(key, value string) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	e.data[key] = value
+	e.data.Store(key, value)
 }
 
 func (e *Engine) Del(key string) {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	delete(e.data, key)
+	e.data.Delete(key)
 }

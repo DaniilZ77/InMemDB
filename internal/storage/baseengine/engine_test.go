@@ -10,11 +10,11 @@ func TestGet_Success(t *testing.T) {
 	t.Parallel()
 
 	engine := NewEngine()
-	engine.data["name"] = "Daniil"
+	engine.data.Store("name", "Daniil")
 
 	value, err := engine.Get("name")
 	if assert.NoError(t, err) {
-		assert.Equal(t, "Daniil", *value)
+		assert.Equal(t, "Daniil", value)
 	}
 }
 
@@ -34,7 +34,7 @@ func TestSet(t *testing.T) {
 
 	engine.Set("name", "Daniil")
 
-	value, ok := engine.data["name"]
+	value, ok := engine.data.Load("name")
 	if assert.True(t, ok) {
 		assert.Equal(t, "Daniil", value)
 	}
@@ -44,10 +44,10 @@ func TestDel(t *testing.T) {
 	t.Parallel()
 
 	engine := NewEngine()
-	engine.data["name"] = "Daniil"
+	engine.data.Store("name", "Daniil")
 
 	engine.Del("name")
 
-	_, ok := engine.data["name"]
+	_, ok := engine.data.Load("name")
 	assert.False(t, ok)
 }

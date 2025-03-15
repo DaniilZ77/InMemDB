@@ -15,7 +15,7 @@ type Compute interface {
 
 type Engine interface {
 	Del(key string)
-	Get(key string) (*string, error)
+	Get(key string) (string, error)
 	Set(key, value string)
 }
 
@@ -61,7 +61,7 @@ func (d *Database) Execute(source string) string {
 			}
 			return "ERROR(internal error)"
 		}
-		return *res
+		return res
 	case parser.DEL:
 		d.engine.Del(command.Args[0])
 		return "OK"
