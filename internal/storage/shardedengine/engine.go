@@ -5,6 +5,7 @@ type ShardedEngine struct {
 	shardsAmount int
 }
 
+//go:generate mockery --name BaseEngine
 type BaseEngine interface {
 	Get(key string) (*string, error)
 	Set(key, value string)
