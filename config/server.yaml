@@ -1,4 +1,6 @@
-engine_type: "in_memory"
+engine:
+  type: "in_memory"
+  log_shards_amount: 5
 network:
   address: "127.0.0.1:3223"
   max_connections: 100

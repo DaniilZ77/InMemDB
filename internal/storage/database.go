@@ -6,7 +6,7 @@ import (
 	"log/slog"
 
 	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
-	"github.com/DaniilZ77/InMemDB/internal/storage/engine"
+	"github.com/DaniilZ77/InMemDB/internal/storage/baseengine"
 )
 
 type Compute interface {
@@ -56,7 +56,7 @@ func (d *Database) Execute(source string) string {
 	case parser.GET:
 		res, err := d.engine.Get(command.Args[0])
 		if err != nil {
-			if errors.Is(err, engine.ErrKeyNotFound) {
+			if errors.Is(err, baseengine.ErrKeyNotFound) {
 				return "NIL"
 			}
 			return "ERROR(internal error)"

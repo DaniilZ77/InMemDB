@@ -19,8 +19,8 @@ type Server struct {
 	idleTimeout time.Duration
 	maxClients  int
 
-	mu      sync.Mutex
-	clients int
+	condition *sync.Cond
+	clients   int
 }
 
 type Database interface {
@@ -54,6 +54,7 @@ func NewServer(
 		bufSize:     cfg.Network.MaxMessageSize,
 		idleTimeout: cfg.Network.IdleTimeout,
 		maxClients:  cfg.Network.MaxConnections,
+		condition:   sync.NewCond(&sync.Mutex{}),
 	}, nil
 }
 
@@ -84,7 +85,8 @@ func (s *Server) handler(conn net.Conn) {
 
 		n, err = conn.Read(buf)
 		if err != nil {
-			if ne, ok := err.(net.Error); ok && ne.Timeout() {
+			var ne net.Error
+			if errors.As(err, &ne) && ne.Timeout() {
 				s.log.Warn("idle connection")
 				break
 			}

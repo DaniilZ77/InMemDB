@@ -7,19 +7,19 @@ import (
 
 func (s *Server) clientsLimiter(next func(conn net.Conn)) func(conn net.Conn) {
 	return func(conn net.Conn) {
-		s.mu.Lock()
-		if s.clients >= s.maxClients {
-			s.mu.Unlock()
-			conn.Close()
-			return
+		s.condition.L.Lock()
+		for s.clients >= s.maxClients {
+			s.condition.Wait()
 		}
 		s.clients++
-		s.mu.Unlock()
+		s.condition.L.Unlock()
 
 		defer func() {
-			s.mu.Lock()
+			s.condition.L.Lock()
 			s.clients--
-			s.mu.Unlock()
+			s.condition.L.Unlock()
+
+			s.condition.Signal()
 		}()
 
 		s.log.Debug("amount of clients increased", slog.Int("clients", s.clients))
