@@ -100,7 +100,7 @@ func BenchmarkEngine_Get(b *testing.B) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < b.N; i++ {
-				engine.Get(strs[i%strsAmount])
+				_, _ = engine.Get(strs[i%strsAmount])
 			}
 		}()
 	}
@@ -123,7 +123,7 @@ func BenchmarkShardedEngine_Get(b *testing.B) {
 		go func() {
 			defer wg.Done()
 			for i := 0; i < b.N; i++ {
-				engine.Get(strs[i%strsAmount])
+				_, _ = engine.Get(strs[i%strsAmount])
 			}
 		}()
 	}
