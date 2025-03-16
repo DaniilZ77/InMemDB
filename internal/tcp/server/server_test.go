@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	engine := sharded.NewShardedEngine(10, func() sharded.BaseEngine {
+	engine := sharded.NewShardedEngine(5, func() sharded.BaseEngine {
 		return baseengine.NewEngine()
 	})
 
