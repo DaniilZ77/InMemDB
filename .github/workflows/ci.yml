@@ -26,8 +26,10 @@ jobs:
       - name: Install dependencies
         run: go mod tidy
 
-      - name: Install Task Runner
-        run: curl -sL https://taskfile.dev/install.sh | sh
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
 
       - name: Build
         run: task build
@@ -48,8 +50,10 @@ jobs:
       - name: Install project dependencies
         run: go mod tidy
 
-      - name: Install Task Runner
-        run: curl -sL https://taskfile.dev/install.sh | sh
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
 
       - name: Tests
         run: task test
