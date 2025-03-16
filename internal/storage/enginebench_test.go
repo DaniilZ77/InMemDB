@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/DaniilZ77/InMemDB/internal/storage/baseengine"
-	"github.com/DaniilZ77/InMemDB/internal/storage/shardedengine"
+	"github.com/DaniilZ77/InMemDB/internal/storage/engine"
+	"github.com/DaniilZ77/InMemDB/internal/storage/sharded"
 )
 
 // logShardsAmount = 3
@@ -92,7 +92,7 @@ func BenchmarkEngine_Get(b *testing.B) {
 	wg.Add(runtime.NumCPU())
 
 	strs := genStrings(strsAmount, strLen)
-	engine := baseengine.NewEngine()
+	engine := engine.NewEngine()
 
 	fillEngine(engine, strs)
 
@@ -113,8 +113,8 @@ func BenchmarkShardedEngine_Get(b *testing.B) {
 	wg.Add(runtime.NumCPU())
 
 	strs := genStrings(strsAmount, strLen)
-	engine := shardedengine.NewShardedEngine(logShardsAmount, func() shardedengine.BaseEngine {
-		return baseengine.NewEngine()
+	engine := sharded.NewShardedEngine(logShardsAmount, func() sharded.BaseEngine {
+		return engine.NewEngine()
 	})
 
 	fillEngine(engine, strs)
@@ -136,7 +136,7 @@ func BenchmarkEngine_Set(b *testing.B) {
 	wg.Add(runtime.NumCPU())
 
 	strs := genStrings(strsAmount, strLen)
-	engine := baseengine.NewEngine()
+	engine := engine.NewEngine()
 
 	fillEngine(engine, strs)
 
@@ -157,8 +157,8 @@ func BenchmarkShardedEngine_Set(b *testing.B) {
 	wg.Add(runtime.NumCPU())
 
 	strs := genStrings(strsAmount, strLen)
-	engine := shardedengine.NewShardedEngine(logShardsAmount, func() shardedengine.BaseEngine {
-		return baseengine.NewEngine()
+	engine := sharded.NewShardedEngine(logShardsAmount, func() sharded.BaseEngine {
+		return engine.NewEngine()
 	})
 
 	fillEngine(engine, strs)
@@ -180,7 +180,7 @@ func BenchmarkEngine_Del(b *testing.B) {
 	wg.Add(runtime.NumCPU())
 
 	strs := genStrings(strsAmount, strLen)
-	engine := baseengine.NewEngine()
+	engine := engine.NewEngine()
 
 	fillEngine(engine, strs)
 
@@ -201,8 +201,8 @@ func BenchmarkShardedEngine_Del(b *testing.B) {
 	wg.Add(runtime.NumCPU())
 
 	strs := genStrings(strsAmount, strLen)
-	engine := shardedengine.NewShardedEngine(logShardsAmount, func() shardedengine.BaseEngine {
-		return baseengine.NewEngine()
+	engine := sharded.NewShardedEngine(logShardsAmount, func() sharded.BaseEngine {
+		return engine.NewEngine()
 	})
 
 	fillEngine(engine, strs)

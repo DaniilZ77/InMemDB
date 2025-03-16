@@ -26,8 +26,11 @@ jobs:
       - name: Install dependencies
         run: go mod tidy
 
+      - name: Install Task Runner
+        run: curl -sL https://taskfile.dev/install.sh | sh
+
       - name: Build
-        run: make build
+        run: task build
 
   test_and_lint:
     name: Run tests and lint
@@ -45,8 +48,11 @@ jobs:
       - name: Install project dependencies
         run: go mod tidy
 
+      - name: Install Task Runner
+        run: curl -sL https://taskfile.dev/install.sh | sh
+
       - name: Tests
-        run: make test
+        run: task test
 
       - name: Lint
         uses: golangci/golangci-lint-action@v6

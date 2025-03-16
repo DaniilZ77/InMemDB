@@ -1,4 +1,4 @@
-package shardedengine
+package sharded
 
 type ShardedEngine struct {
 	engines      []BaseEngine

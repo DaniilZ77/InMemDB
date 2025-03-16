@@ -13,8 +13,8 @@ import (
 	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
 	"github.com/DaniilZ77/InMemDB/internal/config"
 	"github.com/DaniilZ77/InMemDB/internal/storage"
-	"github.com/DaniilZ77/InMemDB/internal/storage/baseengine"
-	"github.com/DaniilZ77/InMemDB/internal/storage/shardedengine"
+	baseengine "github.com/DaniilZ77/InMemDB/internal/storage/engine"
+	"github.com/DaniilZ77/InMemDB/internal/storage/sharded"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -40,7 +40,7 @@ func TestMain(m *testing.M) {
 		panic(err)
 	}
 
-	engine := shardedengine.NewShardedEngine(10, func() shardedengine.BaseEngine {
+	engine := sharded.NewShardedEngine(10, func() sharded.BaseEngine {
 		return baseengine.NewEngine()
 	})
 

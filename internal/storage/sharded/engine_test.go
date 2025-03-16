@@ -1,10 +1,10 @@
-package shardedengine
+package sharded
 
 import (
 	"errors"
 	"testing"
 
-	"github.com/DaniilZ77/InMemDB/internal/storage/shardedengine/mocks"
+	"github.com/DaniilZ77/InMemDB/internal/storage/sharded/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

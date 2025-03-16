@@ -5,8 +5,8 @@ import (
 
 	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
 	"github.com/DaniilZ77/InMemDB/internal/storage"
-	"github.com/DaniilZ77/InMemDB/internal/storage/baseengine"
-	"github.com/DaniilZ77/InMemDB/internal/storage/shardedengine"
+	"github.com/DaniilZ77/InMemDB/internal/storage/engine"
+	"github.com/DaniilZ77/InMemDB/internal/storage/sharded"
 
 	"github.com/DaniilZ77/InMemDB/internal/config"
 	"github.com/DaniilZ77/InMemDB/internal/tcp/server"
@@ -27,10 +27,10 @@ func NewApp(
 
 	var eng storage.Engine
 	if cfg.Engine.LogShardsAmount == 0 {
-		eng = baseengine.NewEngine()
+		eng = engine.NewEngine()
 	} else if cfg.Engine.LogShardsAmount > 0 {
-		eng = shardedengine.NewShardedEngine(cfg.Engine.LogShardsAmount, func() shardedengine.BaseEngine {
-			return baseengine.NewEngine()
+		eng = sharded.NewShardedEngine(cfg.Engine.LogShardsAmount, func() sharded.BaseEngine {
+			return engine.NewEngine()
 		})
 	} else {
 		panic("shards amount must be greater than 0")
