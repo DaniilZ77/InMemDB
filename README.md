@@ -1,5 +1,5 @@
 # InMemDB
-In-memory database with asynchronous replication 
+In-memory database with asynchronous replication
 
 ```
 query = set_command | get_command | del_command
