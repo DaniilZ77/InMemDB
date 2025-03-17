@@ -6,53 +6,31 @@ import (
 	"io"
 	"log/slog"
 	"net"
-	"os"
+	"strings"
 	"testing"
 	"time"
 
-	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
 	"github.com/DaniilZ77/InMemDB/internal/config"
-	"github.com/DaniilZ77/InMemDB/internal/storage"
-	"github.com/DaniilZ77/InMemDB/internal/storage/baseengine"
-	"github.com/DaniilZ77/InMemDB/internal/storage/shardedengine"
+	"github.com/DaniilZ77/InMemDB/internal/tcp/server/mocks"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-const (
-	testAddress = "127.0.0.1:3223"
-)
-
-func TestMain(m *testing.M) {
-	log := slog.New(slog.NewJSONHandler(io.Discard, nil))
+func TestHandler(t *testing.T) {
+	database := mocks.NewDatabase(t)
 
 	cfg := &config.Config{
 		Network: config.Network{
-			Address:        testAddress,
-			MaxConnections: 3,
-			MaxMessageSize: 200,
-			IdleTimeout:    5 * time.Minute,
+			Address:        "127.0.0.1:0",
+			MaxConnections: 5,
+			MaxMessageSize: 100,
+			IdleTimeout:    5 * time.Second,
 		},
 	}
 
-	compute, err := parser.NewParser(log)
-	if err != nil {
-		panic(err)
-	}
-
-	engine := shardedengine.NewShardedEngine(10, func() shardedengine.BaseEngine {
-		return baseengine.NewEngine()
-	})
-
-	database, err := storage.NewDatabase(compute, engine, log)
-	if err != nil {
-		panic(err)
-	}
-
-	server, err := NewServer(cfg, database, log)
-	if err != nil {
-		panic(err)
-	}
+	server, err := NewServer(cfg, database, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	require.NoError(t, err)
 
 	go func() {
 		if err := server.Run(); err != nil {
@@ -60,125 +38,64 @@ func TestMain(m *testing.M) {
 		}
 	}()
 
-	time.Sleep(time.Second)
+	time.Sleep(500 * time.Millisecond)
 
-	os.Exit(m.Run())
-}
+	address := server.lst.Addr().String()
+	command := "set name Daniil"
 
-func TestSet_Success(t *testing.T) {
-	conn, err := net.Dial("tcp", testAddress)
-	require.NoError(t, err)
+	t.Run("success", func(t *testing.T) {
+		database.EXPECT().Execute(mock.MatchedBy(func(source string) bool {
+			return strings.TrimSpace(source) == command
+		})).Return("OK").Once()
 
-	defer conn.Close()
+		conn, err := net.Dial("tcp", address)
+		require.NoError(t, err)
+		defer conn.Close()
 
-	server := bufio.NewReader(conn)
+		resp := bufio.NewReader(conn)
 
-	_, err = fmt.Fprintln(conn, "set name Daniil")
-	require.NoError(t, err)
+		_, err = fmt.Fprintln(conn, command)
+		require.NoError(t, err)
 
-	resp, err := server.ReadString('\n')
-	require.NoError(t, err)
+		body, err := resp.ReadString('\n')
+		require.NoError(t, err)
 
-	assert.Equal(t, "OK\n", string(resp))
-}
+		assert.Equal(t, "OK", strings.TrimSpace(body))
+	})
 
-func Test_Fail(t *testing.T) {
-	conn, err := net.Dial("tcp", testAddress)
-	require.NoError(t, err)
-
-	defer conn.Close()
-
-	server := bufio.NewReader(conn)
-
-	tests := []struct {
-		name    string
-		command string
-	}{
-		{
-			name:    "bad amount of args",
-			command: "get a b c",
-		},
-		{
-			name:    "bad amount of args",
-			command: "set",
-		},
-		{
-			name:    "bad amount of args",
-			command: "del a b",
-		},
-		{
-			name:    "bad command type",
-			command: "st name Daniil",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err = fmt.Fprintln(conn, tt.command)
+	t.Run("exceed client limit", func(t *testing.T) {
+		for range cfg.Network.MaxConnections {
+			conn, err := net.Dial("tcp", address)
 			require.NoError(t, err)
+			defer conn.Close()
+		}
 
-			resp, err := server.ReadString('\n')
-			require.NoError(t, err)
+		database.EXPECT().Execute(mock.MatchedBy(func(source string) bool {
+			return strings.TrimSpace(source) == command
+		})).Return("OK").Once()
 
-			assert.Contains(t, string(resp), "ERROR")
-		})
-	}
-}
+		conn, err := net.Dial("tcp", address)
+		require.NoError(t, err)
 
-func TestGet_Success(t *testing.T) {
-	conn, err := net.Dial("tcp", testAddress)
-	require.NoError(t, err)
+		err = conn.SetReadDeadline(time.Now().Add(time.Second))
+		require.NoError(t, err)
+		defer conn.Close()
 
-	defer conn.Close()
+		_, err = fmt.Fprintln(conn, command)
+		require.NoError(t, err)
 
-	server := bufio.NewReader(conn)
+		_, err = io.ReadAll(conn)
+		assert.Error(t, err)
+	})
 
-	_, err = fmt.Fprintln(conn, "set name Daniil")
-	require.NoError(t, err)
+	t.Run("exceed read deadline", func(t *testing.T) {
+		conn, err := net.Dial("tcp", address)
+		require.NoError(t, err)
+		defer conn.Close()
 
-	resp, err := server.ReadString('\n')
-	require.NoError(t, err)
+		time.Sleep(5 * time.Second)
 
-	require.Equal(t, "OK\n", string(resp))
-
-	_, err = fmt.Fprintln(conn, "get name")
-	require.NoError(t, err)
-
-	resp, err = server.ReadString('\n')
-	require.NoError(t, err)
-
-	assert.Equal(t, "Daniil\n", string(resp))
-}
-
-func TestDel_Success(t *testing.T) {
-	conn, err := net.Dial("tcp", testAddress)
-	require.NoError(t, err)
-
-	defer conn.Close()
-
-	server := bufio.NewReader(conn)
-
-	_, err = fmt.Fprintln(conn, "set name Daniil")
-	require.NoError(t, err)
-
-	resp, err := server.ReadString('\n')
-	require.NoError(t, err)
-
-	require.Equal(t, "OK\n", string(resp))
-
-	_, err = fmt.Fprintln(conn, "del name")
-	require.NoError(t, err)
-
-	resp, err = server.ReadString('\n')
-	require.NoError(t, err)
-
-	assert.Equal(t, "OK\n", string(resp))
-
-	_, err = fmt.Fprintln(conn, "get name")
-	require.NoError(t, err)
-
-	resp, err = server.ReadString('\n')
-	require.NoError(t, err)
-
-	assert.Equal(t, "NIL\n", string(resp))
+		body, _ := io.ReadAll(conn)
+		assert.Empty(t, body)
+	})
 }

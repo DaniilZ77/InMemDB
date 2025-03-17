@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"log/slog"
 	"net"
-	"sync"
 	"time"
 
 	"github.com/DaniilZ77/InMemDB/internal/config"
+	"github.com/DaniilZ77/InMemDB/internal/lib/semaphore"
 )
 
 type Server struct {
@@ -17,12 +17,11 @@ type Server struct {
 	log         *slog.Logger
 	bufSize     int
 	idleTimeout time.Duration
-	maxClients  int
 
-	condition *sync.Cond
-	clients   int
+	semaphore *semaphore.Semaphore
 }
 
+//go:generate mockery --name=Database --with-expecter
 type Database interface {
 	Execute(source string) string
 }
@@ -53,8 +52,7 @@ func NewServer(
 		log:         log,
 		bufSize:     cfg.Network.MaxMessageSize,
 		idleTimeout: cfg.Network.IdleTimeout,
-		maxClients:  cfg.Network.MaxConnections,
-		condition:   sync.NewCond(&sync.Mutex{}),
+		semaphore:   semaphore.NewSemaphore(cfg.Network.MaxConnections),
 	}, nil
 }
 
@@ -87,7 +85,7 @@ func (s *Server) handler(conn net.Conn) {
 		if err != nil {
 			var ne net.Error
 			if errors.As(err, &ne) && ne.Timeout() {
-				s.log.Warn("idle connection")
+				s.log.Warn("idle connection", slog.Any("error", err))
 				break
 			}
 			s.log.Error("read failure", slog.Any("error", err))

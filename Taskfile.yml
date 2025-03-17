@@ -1,0 +1,27 @@
+version: '3'
+
+vars:
+  CLIENT_ADDRESS: 127.0.0.1:3223
+
+tasks:
+  server:
+    env:
+      CONFIG_PATH: ./config/server.yaml
+    cmds:
+      - go run ./cmd/db
+  client:
+    cmds:
+      - go run ./cmd/client --address={{.CLIENT_ADDRESS}}
+  lint:
+    cmds:
+      - golangci-lint run
+  test:
+    cmds:
+      - go test -v ./...
+  build:
+    cmds:
+      - go build -o ./bin/db ./cmd/db
+      - go build -o ./bin/client ./cmd/client
+  clean:
+    cmds:
+      - rm -rf ./bin

@@ -26,8 +26,13 @@ jobs:
       - name: Install dependencies
         run: go mod tidy
 
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+
       - name: Build
-        run: make build
+        run: task build
 
   test_and_lint:
     name: Run tests and lint
@@ -45,8 +50,13 @@ jobs:
       - name: Install project dependencies
         run: go mod tidy
 
+      - name: Install Task
+        uses: arduino/setup-task@v2
+        with:
+          version: 3.x
+
       - name: Tests
-        run: make test
+        run: task test
 
       - name: Lint
         uses: golangci/golangci-lint-action@v6

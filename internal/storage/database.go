@@ -6,16 +6,18 @@ import (
 	"log/slog"
 
 	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
-	"github.com/DaniilZ77/InMemDB/internal/storage/baseengine"
+	"github.com/DaniilZ77/InMemDB/internal/storage/engine"
 )
 
+//go:generate mockery --name=Compute --with-expecter
 type Compute interface {
 	Parse(source string) (*parser.Command, error)
 }
 
+//go:generate mockery --name=Engine --with-expecter
 type Engine interface {
 	Del(key string)
-	Get(key string) (*string, error)
+	Get(key string) (string, error)
 	Set(key, value string)
 }
 
@@ -56,12 +58,12 @@ func (d *Database) Execute(source string) string {
 	case parser.GET:
 		res, err := d.engine.Get(command.Args[0])
 		if err != nil {
-			if errors.Is(err, baseengine.ErrKeyNotFound) {
+			if errors.Is(err, engine.ErrKeyNotFound) {
 				return "NIL"
 			}
 			return "ERROR(internal error)"
 		}
-		return *res
+		return res
 	case parser.DEL:
 		d.engine.Del(command.Args[0])
 		return "OK"
