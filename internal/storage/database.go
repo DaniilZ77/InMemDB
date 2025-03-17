@@ -9,10 +9,12 @@ import (
 	"github.com/DaniilZ77/InMemDB/internal/storage/engine"
 )
 
+//go:generate mockery --name=Compute --with-expecter
 type Compute interface {
 	Parse(source string) (*parser.Command, error)
 }
 
+//go:generate mockery --name=Engine --with-expecter
 type Engine interface {
 	Del(key string)
 	Get(key string) (string, error)
