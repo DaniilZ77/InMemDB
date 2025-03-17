@@ -10,20 +10,20 @@ func TestShardGet_Success(t *testing.T) {
 	t.Parallel()
 
 	engine := NewShard()
-	engine.data.Store("name", "Daniil")
+	engine.data["name"] = "Daniil"
 
-	value, err := engine.Get("name")
-	assert.NoError(t, err)
+	value, ok := engine.Get("name")
+	assert.True(t, ok)
 	assert.Equal(t, "Daniil", value)
 }
 
-func TestShardGet_Fail(t *testing.T) {
+func TestShardGet_NotFound(t *testing.T) {
 	t.Parallel()
 
 	engine := NewShard()
 
 	_, err := engine.Get("name")
-	assert.Equal(t, ErrKeyNotFound, err)
+	assert.Equal(t, false, err)
 }
 
 func TestShardSet(t *testing.T) {
@@ -33,7 +33,7 @@ func TestShardSet(t *testing.T) {
 
 	engine.Set("name", "Daniil")
 
-	value, ok := engine.data.Load("name")
+	value, ok := engine.data["name"]
 	assert.True(t, ok)
 	assert.Equal(t, "Daniil", value)
 }
@@ -42,10 +42,10 @@ func TestShardDel(t *testing.T) {
 	t.Parallel()
 
 	engine := NewShard()
-	engine.data.Store("name", "Daniil")
+	engine.data["name"] = "Daniil"
 
 	engine.Del("name")
 
-	_, ok := engine.data.Load("name")
+	_, ok := engine.data["name"]
 	assert.False(t, ok)
 }

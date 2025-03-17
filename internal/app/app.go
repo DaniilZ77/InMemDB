@@ -24,7 +24,7 @@ func NewApp(
 		panic("failed to init parser: " + err.Error())
 	}
 
-	engine, err := engine.NewEngine(cfg.Engine.LogShardsAmount)
+	engine, err := engine.NewEngine(cfg.Engine.Shards)
 	if err != nil {
 		panic("failed to init engine: " + err.Error())
 	}

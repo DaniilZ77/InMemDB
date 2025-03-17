@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
-	engineerrors "github.com/DaniilZ77/InMemDB/internal/storage/engine"
 	"github.com/DaniilZ77/InMemDB/internal/storage/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -35,7 +34,7 @@ func TestExecute_Success(t *testing.T) {
 					Type: parser.GET,
 					Args: []string{"name"},
 				}, nil)
-				engine.EXPECT().Get("name").Return("Daniil", nil).Once()
+				engine.EXPECT().Get("name").Return("Daniil", true).Once()
 			},
 		},
 		{
@@ -71,7 +70,7 @@ func TestExecute_Success(t *testing.T) {
 					Type: parser.GET,
 					Args: []string{"name"},
 				}, nil)
-				engine.EXPECT().Get("name").Return("", engineerrors.ErrKeyNotFound).Once()
+				engine.EXPECT().Get("name").Return("", false).Once()
 			},
 		},
 	}

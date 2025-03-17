@@ -1,9 +1,14 @@
 engine:
   type: "in_memory"
-  log_shards_amount: 5
+  shards: 16
 network:
   address: "127.0.0.1:3223"
   max_connections: 100
-  max_message_size: 4000 # in bytes
+  max_message_size: 1000 # in bytes
   idle_timeout: 5m
-log_level: "debug"
+log_level: "info"
+wal:  
+  flushing_batch_size: 100
+  flushing_batch_timeout: "10ms"
+  max_segment_size: 10_000_000 # in bytes
+  data_directory: "/data/wal"
