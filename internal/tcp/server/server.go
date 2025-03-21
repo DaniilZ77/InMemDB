@@ -7,8 +7,8 @@ import (
 	"net"
 	"time"
 
+	"github.com/DaniilZ77/InMemDB/internal/concurrency"
 	"github.com/DaniilZ77/InMemDB/internal/config"
-	"github.com/DaniilZ77/InMemDB/internal/lib/semaphore"
 )
 
 type Server struct {
@@ -17,8 +17,7 @@ type Server struct {
 	log         *slog.Logger
 	bufSize     int
 	idleTimeout time.Duration
-
-	semaphore *semaphore.Semaphore
+	semaphore   *concurrency.Semaphore
 }
 
 //go:generate mockery --name=Database --with-expecter
@@ -52,7 +51,7 @@ func NewServer(
 		log:         log,
 		bufSize:     cfg.Network.MaxMessageSize,
 		idleTimeout: cfg.Network.IdleTimeout,
-		semaphore:   semaphore.NewSemaphore(cfg.Network.MaxConnections),
+		semaphore:   concurrency.NewSemaphore(cfg.Network.MaxConnections),
 	}, nil
 }
 

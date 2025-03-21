@@ -2,10 +2,10 @@ package parser
 
 import "errors"
 
-type commandType int
+type CommandType int
 
 const (
-	GET commandType = iota
+	GET CommandType = iota
 	SET
 	DEL
 
@@ -13,18 +13,18 @@ const (
 	defaultArgsCount = 1
 )
 
-var keywords = map[string]commandType{
+var keywords = map[string]CommandType{
 	"get": GET,
 	"set": SET,
 	"del": DEL,
 }
 
 type Command struct {
-	Type commandType
+	Type CommandType
 	Args []string
 }
 
-func (ct commandType) argsCount() int {
+func (ct CommandType) argsCount() int {
 	switch ct {
 	case SET:
 		return setArgsCount

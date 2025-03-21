@@ -12,6 +12,7 @@ type Config struct {
 	Engine   Engine  `yaml:"engine"`
 	Network  Network `yaml:"network"`
 	LogLevel string  `yaml:"log_level" env-default:"info"`
+	Wal      *Wal    `yaml:"wal"`
 }
 
 type Network struct {
@@ -22,8 +23,15 @@ type Network struct {
 }
 
 type Engine struct {
-	Type   string `yaml:"type" env-default:"in_memory"`
-	Shards int    `yaml:"shards" env-default:"16"`
+	Type         string `yaml:"type" env-default:"in_memory"`
+	ShardsNumber int    `yaml:"shards_number" env-default:"16"`
+}
+
+type Wal struct {
+	FlushingBatchSize    int           `yaml:"flushing_batch_size" env-default:"100"`
+	FlushingBatchTimeout time.Duration `yaml:"flushing_batch_timeout" env-default:"10ms"`
+	MaxSegmentSize       int           `yaml:"max_segment_size" env-default:"10_000_000"`
+	DataDirectory        string        `yaml:"data_directory" env-default:"/data/wal"`
 }
 
 func NewConfig() *Config {

@@ -16,7 +16,7 @@ func TestExecute_Success(t *testing.T) {
 	compute := mocks.NewCompute(t)
 	engine := mocks.NewEngine(t)
 
-	database, err := NewDatabase(compute, engine, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	database, err := NewDatabase(compute, engine, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -89,7 +89,7 @@ func TestExecute_ParserError(t *testing.T) {
 	compute := mocks.NewCompute(t)
 	engine := mocks.NewEngine(t)
 
-	database, err := NewDatabase(compute, engine, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	database, err := NewDatabase(compute, engine, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
 
 	compute.EXPECT().Parse("get name").Return(nil, errors.New("internal error")).Once()

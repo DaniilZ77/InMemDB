@@ -38,6 +38,6 @@ func (e *Engine) Del(key string) {
 
 func (e *Engine) getHash(key string) uint32 {
 	h := fnv.New32a()
-	_, _ = h.Write([]byte(key))
+	h.Write([]byte(key))
 	return h.Sum32() % uint32(len(e.shards))
 }

@@ -5,7 +5,9 @@ import (
 
 	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
 	"github.com/DaniilZ77/InMemDB/internal/storage"
+	"github.com/DaniilZ77/InMemDB/internal/storage/disk"
 	"github.com/DaniilZ77/InMemDB/internal/storage/engine"
+	"github.com/DaniilZ77/InMemDB/internal/storage/wal"
 
 	"github.com/DaniilZ77/InMemDB/internal/config"
 	"github.com/DaniilZ77/InMemDB/internal/tcp/server"
@@ -24,15 +26,34 @@ func NewApp(
 		panic("failed to init parser: " + err.Error())
 	}
 
-	engine, err := engine.NewEngine(cfg.Engine.Shards)
+	engine, err := engine.NewEngine(cfg.Engine.ShardsNumber)
 	if err != nil {
 		panic("failed to init engine: " + err.Error())
 	}
 
-	database, err := storage.NewDatabase(parser, engine, log)
+	disk, err := disk.NewDisk(cfg, log)
+	if err != nil {
+		panic("failed to init disk: " + err.Error())
+	}
+
+	wal, err := wal.NewWal(cfg, disk, log)
+	if err != nil {
+		panic("failed to init wal: " + err.Error())
+	}
+
+	go wal.Start()
+
+	database, err := storage.NewDatabase(parser, engine, wal, log)
 	if err != nil {
 		panic("failed to init database: " + err.Error())
 	}
+
+	commands, err := wal.Recover()
+	if err != nil {
+		panic("failed to recover database: " + err.Error())
+	}
+
+	database.Fill(commands)
 
 	server, err := server.NewServer(cfg, database, log)
 	if err != nil {
