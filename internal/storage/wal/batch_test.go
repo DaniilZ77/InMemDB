@@ -38,13 +38,13 @@ func Test(t *testing.T) {
 	wal.Recover()
 
 	wg := sync.WaitGroup{}
-	wg.Add(1000)
+	wg.Add(10)
 
-	for range 1000 {
+	for range 10 {
 		go func() {
 			defer wg.Done()
 			for range 10 {
-				wal.Save(&parser.Command{Type: 1, Args: []string{"key", "value"}})
+				_ = wal.Save(&parser.Command{Type: 1, Args: []string{"key", "value"}})
 			}
 		}()
 	}

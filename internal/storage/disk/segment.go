@@ -16,7 +16,6 @@ type segment struct {
 	curSegmentSize int
 	directory      string
 	file           *os.File
-	modifyTime     time.Time
 }
 
 func newSegment(maxSegmentSize int, curSegmentSize int, directory string) *segment {
@@ -59,32 +58,36 @@ func (s *segment) write(data []byte) error {
 	return nil
 }
 
-func (s *segment) read(path string) ([]byte, error) {
-	file, err := os.OpenFile(path, os.O_RDWR|os.O_APPEND, 0666)
-	if err != nil {
-		return nil, err
-	}
-	stat, err := file.Stat()
-	if err != nil {
-		file.Close()
-		return nil, err
-	}
-
-	modifyTime := stat.ModTime()
-	if modifyTime.After(s.modifyTime) {
-		if s.file != nil {
-			s.file.Close()
+func (s *segment) getReader() func(path string) ([]byte, error) {
+	var latestModTime time.Time
+	return func(path string) ([]byte, error) {
+		file, err := os.OpenFile(path, os.O_RDWR|os.O_APPEND, 0666)
+		if err != nil {
+			return nil, err
 		}
-		s.modifyTime = modifyTime
-		s.file = file
-	} else {
-		defer file.Close()
-	}
 
-	buf := new(bytes.Buffer)
-	if _, err := io.Copy(buf, file); err != nil {
-		return nil, err
+		stat, err := file.Stat()
+		if err != nil {
+			file.Close()
+			return nil, err
+		}
+
+		modTime := stat.ModTime()
+		if modTime.After(latestModTime) {
+			if s.file != nil {
+				s.file.Close()
+			}
+			latestModTime = modTime
+			s.file = file
+			s.curSegmentSize = int(stat.Size())
+		} else {
+			defer file.Close()
+		}
+
+		buf := new(bytes.Buffer)
+		if _, err := io.Copy(buf, file); err != nil {
+			return nil, err
+		}
+		return buf.Bytes(), nil
 	}
-	s.curSegmentSize = int(stat.Size())
-	return buf.Bytes(), nil
 }

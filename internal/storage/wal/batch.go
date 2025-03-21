@@ -15,8 +15,8 @@ type batch struct {
 	doneChannel chan bool
 }
 
-func newBatch(lsn int, batchSize int) *batch {
-	return &batch{lsn: lsn, batchSize: batchSize, doneChannel: make(chan bool)}
+func newBatch(batchSize int) *batch {
+	return &batch{batchSize: batchSize, doneChannel: make(chan bool)}
 }
 
 func (b *batch) appendCommand(command *parser.Command) {

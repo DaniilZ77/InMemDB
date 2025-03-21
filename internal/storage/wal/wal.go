@@ -24,9 +24,8 @@ type Wal struct {
 
 	log *slog.Logger
 
-	batchSize int
-	mu        sync.Mutex
-	batch     *batch
+	mu    sync.Mutex
+	batch *batch
 }
 
 func NewWal(cfg *config.Config, disk Disk, log *slog.Logger) (*Wal, error) {
@@ -45,7 +44,7 @@ func NewWal(cfg *config.Config, disk Disk, log *slog.Logger) (*Wal, error) {
 		batchChannel: make(chan batch),
 		batchTimeout: cfg.Wal.FlushingBatchTimeout,
 		log:          log,
-		batchSize:    cfg.Wal.FlushingBatchSize,
+		batch:        newBatch(cfg.Wal.FlushingBatchSize),
 	}, nil
 }
 
@@ -111,7 +110,7 @@ func (w *Wal) Recover() ([]parser.Command, error) {
 		return nil, err
 	}
 
-	w.batch = newBatch(len(commands), w.batchSize)
+	w.batch.lsn = len(commands)
 
 	slices.SortFunc(commands, func(command1, command2 Command) int {
 		return command1.LSN - command2.LSN

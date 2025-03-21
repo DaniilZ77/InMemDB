@@ -34,12 +34,12 @@ func (w *logsManager) write(commands []Command) error {
 		}
 	}
 
-	meta := new(bytes.Buffer)
-	if err := binary.Write(meta, binary.LittleEndian, uint32(data.Len())); err != nil {
+	length := new(bytes.Buffer)
+	if err := binary.Write(length, binary.LittleEndian, uint32(data.Len())); err != nil {
 		return err
 	}
 
-	if err := w.disk.Write(append(meta.Bytes(), data.Bytes()...)); err != nil {
+	if err := w.disk.Write(append(length.Bytes(), data.Bytes()...)); err != nil {
 		w.log.Error("failed to write data on disk", slog.Any("error", err))
 		return err
 	}
@@ -56,8 +56,8 @@ func (w *logsManager) read() ([]Command, error) {
 	var commands []Command
 	buf := bytes.NewBuffer(data)
 	for {
-		var meta uint32
-		err := binary.Read(buf, binary.LittleEndian, &meta)
+		var length uint32
+		err := binary.Read(buf, binary.LittleEndian, &length)
 		if err == io.EOF {
 			break
 		}
@@ -65,7 +65,7 @@ func (w *logsManager) read() ([]Command, error) {
 			return nil, err
 		}
 
-		data = make([]byte, meta)
+		data = make([]byte, length)
 		if _, err := buf.Read(data); err != nil {
 			return nil, err
 		}

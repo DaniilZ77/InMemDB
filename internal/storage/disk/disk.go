@@ -50,13 +50,14 @@ func (d *Disk) Read() ([]byte, error) {
 	}
 
 	buf := new(bytes.Buffer)
+	reader := d.segment.getReader()
 	for i := range entries {
 		if entries[i].IsDir() {
 			continue
 		}
 
 		path := filepath.Join(d.directory, entries[i].Name())
-		data, err := d.segment.read(path)
+		data, err := reader(path)
 		if err != nil {
 			return nil, err
 		}
