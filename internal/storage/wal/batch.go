@@ -2,12 +2,6 @@ package wal
 
 import "github.com/DaniilZ77/InMemDB/internal/compute/parser"
 
-type Command struct {
-	LSN         int
-	CommandType int
-	Args        []string
-}
-
 type batch struct {
 	lsn         int
 	batchSize   int
