@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
@@ -18,6 +19,7 @@ type App struct {
 }
 
 func NewApp(
+	ctx context.Context,
 	cfg *config.Config,
 	log *slog.Logger) *App {
 

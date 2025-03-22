@@ -1,10 +1,8 @@
 package disk
 
 import (
-	"bytes"
 	"log/slog"
 	"os"
-	"path/filepath"
 	"sync"
 
 	"github.com/DaniilZ77/InMemDB/internal/config"
@@ -19,7 +17,7 @@ type Disk struct {
 func NewDisk(cfg *config.Config, log *slog.Logger) (*Disk, error) {
 	return &Disk{
 		directory: cfg.Wal.DataDirectory,
-		segment:   newSegment(cfg.Wal.MaxSegmentSize, 0, cfg.Wal.DataDirectory),
+		segment:   newSegment(cfg.Wal.MaxSegmentSize, cfg.Wal.DataDirectory),
 	}, nil
 }
 
@@ -42,29 +40,34 @@ func (d *Disk) Read() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(entries) == 0 {
-		if err := d.segment.newFile(); err != nil {
-			return nil, err
-		}
-		return nil, nil
-	}
 
-	buf := new(bytes.Buffer)
-	reader := d.segment.getReader()
+	var lastSegmentIndex int
+	segments := make([][]byte, len(entries))
 	for i := range entries {
 		if entries[i].IsDir() {
 			continue
 		}
 
-		path := filepath.Join(d.directory, entries[i].Name())
-		data, err := reader(path)
+		data, segmentIndex, err := d.segment.read(entries[i].Name())
 		if err != nil {
 			return nil, err
 		}
-		if _, err := buf.Write(data); err != nil {
-			return nil, err
-		}
+		segments[segmentIndex] = data
+		lastSegmentIndex = max(lastSegmentIndex, segmentIndex)
 	}
 
-	return buf.Bytes(), nil
+	d.segment.curSegmentIndex = lastSegmentIndex
+	if err := d.segment.newFile(); err != nil {
+		return nil, err
+	}
+	if len(entries) > 0 {
+		d.segment.curSegmentSize = len(segments[lastSegmentIndex])
+	}
+
+	var data []byte
+	for i := range segments {
+		data = append(data, segments[i]...)
+	}
+
+	return data, nil
 }

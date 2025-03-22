@@ -3,7 +3,6 @@ package wal
 import (
 	"errors"
 	"log/slog"
-	"slices"
 	"sync"
 	"time"
 
@@ -109,12 +108,6 @@ func (w *Wal) Recover() ([]parser.Command, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	w.batch.lsn = len(commands)
-
-	slices.SortFunc(commands, func(command1, command2 Command) int {
-		return command1.LSN - command2.LSN
-	})
 
 	w.log.Info("recovered database", slog.Any("commands", len(commands)))
 

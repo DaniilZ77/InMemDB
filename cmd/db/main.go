@@ -1,22 +1,35 @@
 package main
 
 import (
+	"context"
 	"log/slog"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 
 	"github.com/DaniilZ77/InMemDB/internal/app"
 	"github.com/DaniilZ77/InMemDB/internal/config"
 )
 
 func main() {
+	ctx, cancel := context.WithCancel(context.Background())
+
 	cfg := config.NewConfig()
 	log := newLogger(cfg)
 
-	app := app.NewApp(cfg, log)
-	if err := app.Run(); err != nil {
-		log.Error("failed to run app", slog.Any("error", err))
-	}
+	app := app.NewApp(ctx, cfg, log)
+	go func() {
+		if err := app.Run(); err != nil {
+			panic("failed to run app: " + err.Error())
+		}
+	}()
+
+	interruptCh := make(chan os.Signal, 1)
+	signal.Notify(interruptCh, syscall.SIGINT, syscall.SIGTERM)
+
+	<-interruptCh
+	cancel()
 }
 
 func newLogger(cfg *config.Config) *slog.Logger {

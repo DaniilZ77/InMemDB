@@ -1,27 +1,23 @@
 package disk
 
 import (
-	"bytes"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"time"
-
-	"github.com/google/uuid"
 )
 
 type segment struct {
-	maxSegmentSize int
-	curSegmentSize int
-	directory      string
-	file           *os.File
+	maxSegmentSize  int
+	curSegmentSize  int
+	curSegmentIndex int
+	directory       string
+	file            *os.File
 }
 
-func newSegment(maxSegmentSize int, curSegmentSize int, directory string) *segment {
+func newSegment(maxSegmentSize int, directory string) *segment {
 	return &segment{
 		maxSegmentSize: maxSegmentSize,
-		curSegmentSize: curSegmentSize,
 		directory:      directory,
 	}
 }
@@ -31,12 +27,13 @@ func (s *segment) newFile() (err error) {
 		s.file.Close()
 	}
 
-	fileName := fmt.Sprintf("wal_%s.log", uuid.NewString())
+	fileName := fmt.Sprintf("wal_%d.log", s.curSegmentIndex)
 	s.file, err = os.OpenFile(filepath.Join(s.directory, fileName), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		return err
 	}
 
+	s.curSegmentIndex++
 	s.curSegmentSize = 0
 	return nil
 }
@@ -58,36 +55,21 @@ func (s *segment) write(data []byte) error {
 	return nil
 }
 
-func (s *segment) getReader() func(path string) ([]byte, error) {
-	var latestModTime time.Time
-	return func(path string) ([]byte, error) {
-		file, err := os.OpenFile(path, os.O_RDWR|os.O_APPEND, 0666)
-		if err != nil {
-			return nil, err
-		}
-
-		stat, err := file.Stat()
-		if err != nil {
-			file.Close()
-			return nil, err
-		}
-
-		modTime := stat.ModTime()
-		if modTime.After(latestModTime) {
-			if s.file != nil {
-				s.file.Close()
-			}
-			latestModTime = modTime
-			s.file = file
-			s.curSegmentSize = int(stat.Size())
-		} else {
-			defer file.Close()
-		}
-
-		buf := new(bytes.Buffer)
-		if _, err := io.Copy(buf, file); err != nil {
-			return nil, err
-		}
-		return buf.Bytes(), nil
+func (s *segment) read(fileName string) (data []byte, segmentIndex int, err error) {
+	if _, err := fmt.Sscanf(fileName, "wal_%d.log", &segmentIndex); err != nil {
+		return nil, 0, fmt.Errorf("failed to parse file name (%s) of wal log: %w", fileName, err)
 	}
+
+	file, err := os.Open(filepath.Join(s.directory, fileName))
+	if err != nil {
+		return nil, 0, err
+	}
+	defer file.Close()
+
+	data, err = io.ReadAll(file)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return data, segmentIndex, nil
 }

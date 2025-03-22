@@ -47,6 +47,25 @@ func (w *logsManager) write(commands []Command) error {
 	return nil
 }
 
+func (w *logsManager) decodeCommands(data []byte) ([]Command, error) {
+	var commands []Command
+	decoder := gob.NewDecoder(bytes.NewBuffer(data))
+	for {
+		var command Command
+		err := decoder.Decode(&command)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+
+		commands = append(commands, command)
+	}
+
+	return commands, nil
+}
+
 func (w *logsManager) read() ([]Command, error) {
 	data, err := w.disk.Read()
 	if err != nil {
@@ -69,19 +88,13 @@ func (w *logsManager) read() ([]Command, error) {
 		if _, err := buf.Read(data); err != nil {
 			return nil, err
 		}
-		decoder := gob.NewDecoder(bytes.NewBuffer(data))
-		for {
-			var command Command
-			err = decoder.Decode(&command)
-			if err == io.EOF {
-				break
-			}
-			if err != nil {
-				return nil, err
-			}
 
-			commands = append(commands, command)
+		res, err := w.decodeCommands(data)
+		if err != nil {
+			return nil, err
 		}
+
+		commands = append(commands, res...)
 	}
 
 	return commands, nil
