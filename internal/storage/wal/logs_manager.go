@@ -66,6 +66,29 @@ func (w *logsManager) decodeCommands(data []byte) ([]Command, error) {
 	return commands, nil
 }
 
+func (w *logsManager) decodeLength(buf *bytes.Buffer) (uint32, error) {
+	var length uint32
+	if err := binary.Read(buf, binary.LittleEndian, &length); err != nil {
+		return 0, err
+	}
+
+	return length, nil
+}
+
+func (w *logsManager) decodeBatch(buf *bytes.Buffer) ([]Command, error) {
+	length, err := w.decodeLength(buf)
+	if err != nil {
+		return nil, err
+	}
+
+	data := make([]byte, length)
+	if _, err := buf.Read(data); err != nil {
+		return nil, err
+	}
+
+	return w.decodeCommands(data)
+}
+
 func (w *logsManager) read() ([]Command, error) {
 	data, err := w.disk.Read()
 	if err != nil {
@@ -75,21 +98,10 @@ func (w *logsManager) read() ([]Command, error) {
 	var commands []Command
 	buf := bytes.NewBuffer(data)
 	for {
-		var length uint32
-		err := binary.Read(buf, binary.LittleEndian, &length)
+		res, err := w.decodeBatch(buf)
 		if err == io.EOF {
 			break
 		}
-		if err != nil {
-			return nil, err
-		}
-
-		data = make([]byte, length)
-		if _, err := buf.Read(data); err != nil {
-			return nil, err
-		}
-
-		res, err := w.decodeCommands(data)
 		if err != nil {
 			return nil, err
 		}

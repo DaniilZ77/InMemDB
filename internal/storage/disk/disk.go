@@ -1,8 +1,10 @@
 package disk
 
 import (
+	"io"
 	"log/slog"
 	"os"
+	"path/filepath"
 	"sync"
 
 	"github.com/DaniilZ77/InMemDB/internal/config"
@@ -32,6 +34,21 @@ func (d *Disk) Write(data []byte) error {
 	return nil
 }
 
+func (d *Disk) read(fileName string) (data []byte, err error) {
+	file, err := os.Open(filepath.Join(d.directory, fileName))
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	data, err = io.ReadAll(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
+}
+
 func (d *Disk) Read() ([]byte, error) {
 	d.mu.RLock()
 	defer d.mu.RUnlock()
@@ -41,36 +58,18 @@ func (d *Disk) Read() ([]byte, error) {
 		return nil, err
 	}
 
-	if len(entries) == 0 {
-		if err := d.segment.newFile(empty); err != nil {
-			return nil, err
-		}
-		return nil, nil
-	}
-
-	var lastSegmentIndex int
-	segments := make([][]byte, len(entries))
+	var data []byte
 	for i := range entries {
 		if entries[i].IsDir() {
 			continue
 		}
 
-		data, segmentIndex, err := d.segment.read(entries[i].Name())
+		segment, err := d.read(entries[i].Name())
 		if err != nil {
 			return nil, err
 		}
-		segments[segmentIndex] = data
-		lastSegmentIndex = max(lastSegmentIndex, segmentIndex)
-	}
 
-	d.segment.curSegmentIndex = lastSegmentIndex
-	if err := d.segment.newFile(len(segments[lastSegmentIndex])); err != nil {
-		return nil, err
-	}
-
-	var data []byte
-	for i := range segments {
-		data = append(data, segments[i]...)
+		data = append(data, segment...)
 	}
 
 	return data, nil
