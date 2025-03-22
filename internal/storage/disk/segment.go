@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 )
 
+const empty = 0
+
 type segment struct {
 	maxSegmentSize  int
 	curSegmentSize  int
@@ -22,7 +24,7 @@ func newSegment(maxSegmentSize int, directory string) *segment {
 	}
 }
 
-func (s *segment) newFile() (err error) {
+func (s *segment) newFile(size int) (err error) {
 	if s.file != nil {
 		s.file.Close()
 	}
@@ -34,13 +36,13 @@ func (s *segment) newFile() (err error) {
 	}
 
 	s.curSegmentIndex++
-	s.curSegmentSize = 0
+	s.curSegmentSize = size
 	return nil
 }
 
 func (s *segment) write(data []byte) error {
 	if s.curSegmentSize >= s.maxSegmentSize {
-		if err := s.newFile(); err != nil {
+		if err := s.newFile(empty); err != nil {
 			return err
 		}
 	}

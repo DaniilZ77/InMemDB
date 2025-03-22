@@ -41,6 +41,13 @@ func (d *Disk) Read() ([]byte, error) {
 		return nil, err
 	}
 
+	if len(entries) == 0 {
+		if err := d.segment.newFile(empty); err != nil {
+			return nil, err
+		}
+		return nil, nil
+	}
+
 	var lastSegmentIndex int
 	segments := make([][]byte, len(entries))
 	for i := range entries {
@@ -57,11 +64,8 @@ func (d *Disk) Read() ([]byte, error) {
 	}
 
 	d.segment.curSegmentIndex = lastSegmentIndex
-	if err := d.segment.newFile(); err != nil {
+	if err := d.segment.newFile(len(segments[lastSegmentIndex])); err != nil {
 		return nil, err
-	}
-	if len(entries) > 0 {
-		d.segment.curSegmentSize = len(segments[lastSegmentIndex])
 	}
 
 	var data []byte
