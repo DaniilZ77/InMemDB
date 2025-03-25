@@ -20,8 +20,8 @@ type Engine interface {
 	Set(key, value string)
 }
 
+//go:generate mockery --name=Wal --with-expecter
 type Wal interface {
-	Start()
 	Save(command *parser.Command) bool
 	Recover() ([]parser.Command, error)
 }
@@ -39,9 +39,6 @@ func NewDatabase(compute Compute, engine Engine, wal Wal, log *slog.Logger) (*Da
 	}
 	if engine == nil {
 		return nil, errors.New("engine is nil")
-	}
-	if wal == nil {
-		return nil, errors.New("wal is nil")
 	}
 	if log == nil {
 		return nil, errors.New("logger is nil")
@@ -65,27 +62,26 @@ func (d *Database) Execute(source string) string {
 
 	switch command.Type {
 	case parser.SET:
-		if d.wal.Save(command) {
-			d.engine.Set(command.Args[0], command.Args[1])
-			return "OK"
-		}
+		return d.setCommand(command)
 	case parser.GET:
-		res, ok := d.engine.Get(command.Args[0])
-		if !ok {
-			return "NIL"
-		}
-		return res
+		return d.getCommand(command)
 	case parser.DEL:
-		if d.wal.Save(command) {
-			d.engine.Del(command.Args[0])
-			return "OK"
-		}
+		return d.delCommand(command)
 	}
 
 	return "ERROR(internal error)"
 }
 
-func (d *Database) Fill(commands []parser.Command) {
+func (d *Database) Recover() error {
+	if d.wal == nil {
+		return nil
+	}
+
+	commands, err := d.wal.Recover()
+	if err != nil {
+		return err
+	}
+
 	for _, command := range commands {
 		switch command.Type {
 		case parser.SET:
@@ -96,4 +92,33 @@ func (d *Database) Fill(commands []parser.Command) {
 			d.log.Warn("command type must be one of set or del")
 		}
 	}
+
+	return nil
+}
+
+func (d *Database) setCommand(command *parser.Command) string {
+	if d.wal == nil || d.wal.Save(command) {
+		d.engine.Set(command.Args[0], command.Args[1])
+		return "OK"
+	}
+
+	return "ERROR(internal error)"
+}
+
+func (d *Database) getCommand(command *parser.Command) string {
+	res, ok := d.engine.Get(command.Args[0])
+	if !ok {
+		return "NIL"
+	}
+
+	return res
+}
+
+func (d *Database) delCommand(command *parser.Command) string {
+	if d.wal == nil || d.wal.Save(command) {
+		d.engine.Del(command.Args[0])
+		return "OK"
+	}
+
+	return "ERROR(internal error)"
 }

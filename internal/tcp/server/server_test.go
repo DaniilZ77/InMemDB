@@ -2,6 +2,8 @@ package server
 
 import (
 	"bufio"
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -17,7 +19,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestHandler(t *testing.T) {
+func TestServer(t *testing.T) {
 	database := mocks.NewDatabase(t)
 
 	cfg := &config.Config{
@@ -32,9 +34,11 @@ func TestHandler(t *testing.T) {
 	server, err := NewServer(cfg, database, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	go func() {
-		if err := server.Run(); err != nil {
-			panic(err)
+		if err := server.Run(ctx); err != nil {
+			t.Log(err)
 		}
 	}()
 
@@ -50,7 +54,7 @@ func TestHandler(t *testing.T) {
 
 		conn, err := net.Dial("tcp", address)
 		require.NoError(t, err)
-		defer conn.Close()
+		defer conn.Close() // nolint
 
 		resp := bufio.NewReader(conn)
 
@@ -67,7 +71,7 @@ func TestHandler(t *testing.T) {
 		for range cfg.Network.MaxConnections {
 			conn, err := net.Dial("tcp", address)
 			require.NoError(t, err)
-			defer conn.Close()
+			defer conn.Close() // nolint
 		}
 
 		database.EXPECT().Execute(mock.MatchedBy(func(source string) bool {
@@ -79,7 +83,7 @@ func TestHandler(t *testing.T) {
 
 		err = conn.SetReadDeadline(time.Now().Add(time.Second))
 		require.NoError(t, err)
-		defer conn.Close()
+		defer conn.Close() // nolint
 
 		_, err = fmt.Fprintln(conn, command)
 		require.NoError(t, err)
@@ -91,11 +95,35 @@ func TestHandler(t *testing.T) {
 	t.Run("exceed read deadline", func(t *testing.T) {
 		conn, err := net.Dial("tcp", address)
 		require.NoError(t, err)
-		defer conn.Close()
+		defer conn.Close() // nolint
 
 		time.Sleep(5 * time.Second)
 
 		body, _ := io.ReadAll(conn)
 		assert.Empty(t, body)
+	})
+
+	t.Run("context cancel", func(t *testing.T) {
+		conn, err := net.Dial("tcp", address)
+		require.NoError(t, err)
+		defer conn.Close() // nolint
+
+		cancel()
+
+		cancelErr := errors.New("context was cancelled")
+		ctx, cancel := context.WithCancelCause(context.Background())
+		done := make(chan struct{}, 1)
+		go func() {
+			server.Shutdown(ctx)
+			done <- struct{}{}
+		}()
+		cancel(cancelErr)
+
+		select {
+		case <-time.After(time.Second):
+		case <-done:
+		}
+
+		assert.ErrorIs(t, cancelErr, context.Cause(ctx))
 	})
 }

@@ -33,29 +33,35 @@ func NewApp(
 		panic("failed to init engine: " + err.Error())
 	}
 
-	disk, err := disk.NewDisk(cfg, log)
-	if err != nil {
-		panic("failed to init disk: " + err.Error())
+	var database *storage.Database
+	if cfg.Wal != nil {
+		disk, err := disk.NewDisk(cfg, log)
+		if err != nil {
+			panic("failed to init disk: " + err.Error())
+		}
+
+		wal, err := wal.NewWal(cfg, disk, log)
+		if err != nil {
+			panic("failed to init wal: " + err.Error())
+		}
+
+		go wal.Start(ctx)
+
+		database, err = storage.NewDatabase(parser, engine, wal, log)
+		if err != nil {
+			panic("failed to init database: " + err.Error())
+		}
+	} else {
+		database, err = storage.NewDatabase(parser, engine, nil, log)
+		if err != nil {
+			panic("failed to init database: " + err.Error())
+		}
 	}
 
-	wal, err := wal.NewWal(cfg, disk, log)
-	if err != nil {
-		panic("failed to init wal: " + err.Error())
-	}
-
-	go wal.Start()
-
-	database, err := storage.NewDatabase(parser, engine, wal, log)
-	if err != nil {
-		panic("failed to init database: " + err.Error())
-	}
-
-	commands, err := wal.Recover()
+	err = database.Recover()
 	if err != nil {
 		panic("failed to recover database: " + err.Error())
 	}
-
-	database.Fill(commands)
 
 	server, err := server.NewServer(cfg, database, log)
 	if err != nil {
@@ -65,10 +71,14 @@ func NewApp(
 	return &App{server}
 }
 
-func (a *App) Run() error {
-	if err := a.server.Run(); err != nil {
+func (a *App) Run(ctx context.Context) error {
+	if err := a.server.Run(ctx); err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (a *App) Shutdown(ctx context.Context) {
+	a.server.Shutdown(ctx)
 }

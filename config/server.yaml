@@ -7,7 +7,7 @@ network:
   max_message_size: 1000 # in bytes
   idle_timeout: 5m
 log_level: info
-wal:  
+wal:
   flushing_batch_size: 100
   flushing_batch_timeout: 10ms
   max_segment_size: 10_000_000 # in bytes

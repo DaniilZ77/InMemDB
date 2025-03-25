@@ -15,8 +15,9 @@ import (
 func TestExecute_Success(t *testing.T) {
 	compute := mocks.NewCompute(t)
 	engine := mocks.NewEngine(t)
+	wal := mocks.NewWal(t)
 
-	database, err := NewDatabase(compute, engine, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	database, err := NewDatabase(compute, engine, wal, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -33,7 +34,7 @@ func TestExecute_Success(t *testing.T) {
 				compute.EXPECT().Parse("get name").Return(&parser.Command{
 					Type: parser.GET,
 					Args: []string{"name"},
-				}, nil)
+				}, nil).Once()
 				engine.EXPECT().Get("name").Return("Daniil", true).Once()
 			},
 		},
@@ -42,11 +43,13 @@ func TestExecute_Success(t *testing.T) {
 			command:  "set name Daniil",
 			expected: "OK",
 			mock: func() {
-				compute.EXPECT().Parse("set name Daniil").Return(&parser.Command{
+				command := &parser.Command{
 					Type: parser.SET,
 					Args: []string{"name", "Daniil"},
-				}, nil)
+				}
+				compute.EXPECT().Parse("set name Daniil").Return(command, nil).Once()
 				engine.EXPECT().Set("name", "Daniil").Return().Once()
+				wal.EXPECT().Save(command).Return(true).Once()
 			},
 		},
 		{
@@ -54,11 +57,13 @@ func TestExecute_Success(t *testing.T) {
 			command:  "del name",
 			expected: "OK",
 			mock: func() {
-				compute.EXPECT().Parse("del name").Return(&parser.Command{
+				command := &parser.Command{
 					Type: parser.DEL,
 					Args: []string{"name"},
-				}, nil)
+				}
+				compute.EXPECT().Parse("del name").Return(command, nil).Once()
 				engine.EXPECT().Del("name").Return().Once()
+				wal.EXPECT().Save(command).Return(true).Once()
 			},
 		},
 		{
@@ -69,7 +74,7 @@ func TestExecute_Success(t *testing.T) {
 				compute.EXPECT().Parse("get name").Return(&parser.Command{
 					Type: parser.GET,
 					Args: []string{"name"},
-				}, nil)
+				}, nil).Once()
 				engine.EXPECT().Get("name").Return("", false).Once()
 			},
 		},
@@ -96,4 +101,81 @@ func TestExecute_ParserError(t *testing.T) {
 
 	res := database.Execute("get name")
 	assert.Contains(t, res, "ERROR")
+}
+
+func TestExecute_NilWal(t *testing.T) {
+	compute := mocks.NewCompute(t)
+	engine := mocks.NewEngine(t)
+
+	database, err := NewDatabase(compute, engine, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	require.NoError(t, err)
+
+	commandStr := "set name Daniil"
+	compute.EXPECT().Parse(commandStr).Return(&parser.Command{
+		Type: parser.SET,
+		Args: []string{"name", "Daniil"},
+	}, nil)
+	engine.EXPECT().Set("name", "Daniil").Return().Once()
+
+	res := database.Execute(commandStr)
+	assert.Equal(t, "OK", res)
+}
+
+func TestExecute_WalSaveError(t *testing.T) {
+	compute := mocks.NewCompute(t)
+	engine := mocks.NewEngine(t)
+	wal := mocks.NewWal(t)
+
+	database, err := NewDatabase(compute, engine, wal, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	require.NoError(t, err)
+
+	command := &parser.Command{
+		Type: parser.SET,
+		Args: []string{"name", "Daniil"},
+	}
+	commandStr := "set name Daniil"
+	compute.EXPECT().Parse(commandStr).Return(command, nil).Once()
+	wal.EXPECT().Save(command).Return(false).Once()
+
+	res := database.Execute(commandStr)
+	assert.Contains(t, res, "ERROR")
+}
+
+func TestRecover_Success(t *testing.T) {
+	compute := mocks.NewCompute(t)
+	engine := mocks.NewEngine(t)
+	wal := mocks.NewWal(t)
+
+	database, err := NewDatabase(compute, engine, wal, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	require.NoError(t, err)
+
+	wal.EXPECT().Recover().Return([]parser.Command{
+		{
+			Type: parser.SET,
+			Args: []string{"name", "Daniil"},
+		},
+		{
+			Type: parser.DEL,
+			Args: []string{"name"},
+		},
+		{
+			Type: parser.GET,
+		},
+	}, nil).Once()
+	engine.EXPECT().Set("name", "Daniil").Return().Once()
+	engine.EXPECT().Del("name").Return().Once()
+
+	err = database.Recover()
+	assert.Nil(t, err)
+}
+
+func TestRecover_NilWal(t *testing.T) {
+	compute := mocks.NewCompute(t)
+	engine := mocks.NewEngine(t)
+
+	database, err := NewDatabase(compute, engine, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	require.NoError(t, err)
+
+	err = database.Recover()
+	assert.Nil(t, err)
 }

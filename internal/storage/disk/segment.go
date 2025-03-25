@@ -2,6 +2,7 @@ package disk
 
 import (
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"time"
@@ -12,18 +13,22 @@ type segment struct {
 	curSegmentSize int
 	directory      string
 	file           *os.File
+	log            *slog.Logger
 }
 
-func newSegment(maxSegmentSize int, directory string) *segment {
+func NewSegment(maxSegmentSize int, directory string, log *slog.Logger) *segment {
 	return &segment{
 		maxSegmentSize: maxSegmentSize,
 		directory:      directory,
+		log:            log,
 	}
 }
 
 func (s *segment) rotateSegment() (err error) {
 	if s.file != nil {
-		s.file.Close()
+		if err := s.file.Close(); err != nil {
+			s.log.Error("failed to close file", slog.String("filename", s.file.Name()), slog.Any("error", err))
+		}
 	}
 
 	fileName := fmt.Sprintf("wal_%d.log", time.Now().UnixMilli())
@@ -36,7 +41,7 @@ func (s *segment) rotateSegment() (err error) {
 	return nil
 }
 
-func (s *segment) write(data []byte) error {
+func (s *segment) Write(data []byte) error {
 	if s.file == nil || s.curSegmentSize >= s.maxSegmentSize {
 		if err := s.rotateSegment(); err != nil {
 			return err

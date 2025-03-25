@@ -14,12 +14,14 @@ type Disk struct {
 	directory string
 	mu        sync.RWMutex
 	segment   *segment
+	log       *slog.Logger
 }
 
 func NewDisk(cfg *config.Config, log *slog.Logger) (*Disk, error) {
 	return &Disk{
 		directory: cfg.Wal.DataDirectory,
-		segment:   newSegment(cfg.Wal.MaxSegmentSize, cfg.Wal.DataDirectory),
+		segment:   NewSegment(cfg.Wal.MaxSegmentSize, cfg.Wal.DataDirectory, log),
+		log:       log,
 	}, nil
 }
 
@@ -27,7 +29,7 @@ func (d *Disk) Write(data []byte) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	if err := d.segment.write(data); err != nil {
+	if err := d.segment.Write(data); err != nil {
 		return err
 	}
 
@@ -39,7 +41,11 @@ func (d *Disk) read(fileName string) (data []byte, err error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() {
+		if err := file.Close(); err != nil {
+			d.log.Error("failed to close file", slog.String("filename", fileName), slog.Any("error", err))
+		}
+	}()
 
 	data, err = io.ReadAll(file)
 	if err != nil {

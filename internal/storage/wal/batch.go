@@ -9,11 +9,11 @@ type batch struct {
 	doneChannel chan bool
 }
 
-func newBatch(batchSize int) *batch {
+func NewBatch(batchSize int) *batch {
 	return &batch{batchSize: batchSize, doneChannel: make(chan bool)}
 }
 
-func (b *batch) appendCommand(command *parser.Command) {
+func (b *batch) AppendCommand(command *parser.Command) {
 	b.commands = append(b.commands, Command{
 		LSN:         b.lsn,
 		CommandType: int(command.Type),
@@ -22,22 +22,22 @@ func (b *batch) appendCommand(command *parser.Command) {
 	b.lsn++
 }
 
-func (b *batch) resetBatch() {
+func (b *batch) ResetBatch() {
 	b.commands = nil
 	b.doneChannel = make(chan bool)
 }
 
-func (b *batch) notifyFlushed(status bool) {
+func (b *batch) NotifyFlushed(status bool) {
 	defer close(b.doneChannel)
 	for range b.commands {
 		b.doneChannel <- status
 	}
 }
 
-func (b *batch) isFull() bool {
+func (b *batch) IsFull() bool {
 	return len(b.commands) >= b.batchSize
 }
 
-func (b *batch) waitFlushed() bool {
+func (b *batch) WaitFlushed() bool {
 	return <-b.doneChannel
 }

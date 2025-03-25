@@ -1,10 +1,12 @@
 package server
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log/slog"
 	"net"
+	"sync"
 	"time"
 
 	"github.com/DaniilZ77/InMemDB/internal/concurrency"
@@ -18,6 +20,7 @@ type Server struct {
 	bufSize     int
 	idleTimeout time.Duration
 	semaphore   *concurrency.Semaphore
+	wg          sync.WaitGroup
 }
 
 //go:generate mockery --name=Database --with-expecter
@@ -45,6 +48,7 @@ func NewServer(
 	}
 
 	log.Info("started listening", slog.String("address", cfg.Network.Address))
+
 	return &Server{
 		lst:         lst,
 		database:    database,
@@ -55,25 +59,54 @@ func NewServer(
 	}, nil
 }
 
-func (s *Server) Run() error {
+func (s *Server) Run(ctx context.Context) error {
 	for {
 		conn, err := s.lst.Accept()
 		if err != nil {
 			return err
 		}
 
-		go s.recoverer(s.clientsLimiter(s.handler))(conn)
+		s.wg.Add(1)
+		go s.recoverer(s.clientsLimiter(s.handler))(ctx, conn)
 	}
 }
 
-func (s *Server) handler(conn net.Conn) {
-	defer conn.Close()
+func (s *Server) Shutdown(ctx context.Context) {
+	if err := s.lst.Close(); err != nil {
+		s.log.Error("failed to close listener", slog.Any("error", err))
+	}
+
+	doneConnections := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(doneConnections)
+	}()
+
+	select {
+	case <-ctx.Done():
+		s.log.Info("force shutdown")
+	case <-doneConnections:
+		s.log.Info("all connections closed")
+	}
+}
+
+func (s *Server) handler(ctx context.Context, conn net.Conn) {
+	defer func() {
+		if err := conn.Close(); err != nil {
+			s.log.Error("failed to close connection", slog.Any("error", err))
+		}
+		s.wg.Done()
+	}()
 
 	var err error
 	var n int
 	var resp string
 	buf := make([]byte, s.bufSize)
 	for {
+		if ctx.Err() != nil {
+			return
+		}
+
 		err = conn.SetReadDeadline(time.Now().Add(s.idleTimeout))
 		if err != nil {
 			s.log.Error("set read deadline failure", slog.Any("error", err))

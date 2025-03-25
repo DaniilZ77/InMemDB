@@ -16,14 +16,14 @@ type logsManager struct {
 	log  *slog.Logger
 }
 
-func newLogsManager(disk Disk, log *slog.Logger) *logsManager {
+func NewLogsManager(disk Disk, log *slog.Logger) *logsManager {
 	return &logsManager{
 		disk: disk,
 		log:  log,
 	}
 }
 
-func (w *logsManager) write(commands []Command) error {
+func (w *logsManager) Write(commands []Command) error {
 	var buf []byte
 	for _, command := range commands {
 		encodedCommand, err := command.Encode()
@@ -41,7 +41,7 @@ func (w *logsManager) write(commands []Command) error {
 	return nil
 }
 
-func (w *logsManager) read() ([]Command, error) {
+func (w *logsManager) Read() ([]Command, error) {
 	data, err := w.disk.Read()
 	if err != nil {
 		return nil, err

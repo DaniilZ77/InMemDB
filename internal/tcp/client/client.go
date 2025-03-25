@@ -26,7 +26,7 @@ func (c *Client) Run() error {
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer conn.Close() // nolint
 
 	user := bufio.NewReader(os.Stdin)
 	server := bufio.NewReader(conn)
