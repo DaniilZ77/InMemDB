@@ -16,13 +16,11 @@ func TestLogsManager_Success(t *testing.T) {
 
 	disk := NewMockDisk(t)
 	logsManager := NewLogsManager(disk, slog.New(slog.NewJSONHandler(io.Discard, nil)))
-
 	commands := []Command{
 		{LSN: 1, CommandType: 0, Args: []string{"name"}},
 		{LSN: 2, CommandType: 1, Args: []string{"name", "Daniil"}},
 		{LSN: 3, CommandType: 2, Args: []string{"name"}},
 	}
-
 	var encodedCommands []byte
 	disk.EXPECT().Write(mock.MatchedBy(func(data []byte) bool {
 		encodedCommands = data
@@ -31,19 +29,15 @@ func TestLogsManager_Success(t *testing.T) {
 
 	err := logsManager.Write(commands)
 	require.NoError(t, err)
-
 	disk.EXPECT().Read().Return(encodedCommands, nil).Once()
-
 	decodedCommands, err := logsManager.Read()
 	require.NoError(t, err)
-
 	assert.Equal(t, commands, decodedCommands)
 }
 
 func TestLogsManager_Error(t *testing.T) {
 	disk := NewMockDisk(t)
 	logsManager := NewLogsManager(disk, slog.New(slog.NewJSONHandler(io.Discard, nil)))
-
 	expectedErr := errors.New("logs manager error")
 
 	tests := []struct {

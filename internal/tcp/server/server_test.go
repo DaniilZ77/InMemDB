@@ -3,12 +3,13 @@ package server
 import (
 	"bufio"
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net"
+	"os"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -20,7 +21,6 @@ import (
 
 func TestServer(t *testing.T) {
 	database := NewMockDatabase(t)
-
 	cfg := &config.Config{
 		Network: config.Network{
 			Address:        "127.0.0.1:0",
@@ -29,17 +29,17 @@ func TestServer(t *testing.T) {
 			IdleTimeout:    5 * time.Second,
 		},
 	}
-
 	server, err := NewServer(cfg, database, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
+	started := make(chan struct{})
 	go func() {
-		server.Run(ctx) // nolint
+		close(started)
+		server.Run(ctx)
 	}()
-
-	time.Sleep(500 * time.Millisecond)
+	<-started
 
 	address := server.lst.Addr().String()
 	command := "set name Daniil"
@@ -77,16 +77,16 @@ func TestServer(t *testing.T) {
 
 		conn, err := net.Dial("tcp", address)
 		require.NoError(t, err)
-
-		err = conn.SetReadDeadline(time.Now().Add(time.Second))
-		require.NoError(t, err)
 		defer conn.Close() // nolint
 
 		_, err = fmt.Fprintln(conn, command)
 		require.NoError(t, err)
 
-		_, err = io.ReadAll(conn)
-		assert.Error(t, err)
+		err = conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+		require.NoError(t, err)
+
+		_, err = conn.Read(make([]byte, 10))
+		assert.ErrorIs(t, err, os.ErrDeadlineExceeded)
 	})
 
 	t.Run("exceed read deadline", func(t *testing.T) {
@@ -94,10 +94,10 @@ func TestServer(t *testing.T) {
 		require.NoError(t, err)
 		defer conn.Close() // nolint
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(6 * time.Second)
 
-		body, _ := io.ReadAll(conn)
-		assert.Empty(t, body)
+		_, err = conn.Read(make([]byte, 10))
+		assert.ErrorIs(t, err, io.EOF)
 	})
 
 	t.Run("context cancel", func(t *testing.T) {
@@ -107,20 +107,17 @@ func TestServer(t *testing.T) {
 
 		cancel()
 
-		cancelErr := errors.New("context was cancelled")
-		ctx, cancel := context.WithCancelCause(context.Background())
-		done := make(chan struct{}, 1)
+		ctx, cancel := context.WithCancel(context.Background())
+		cancel()
+
+		wg := sync.WaitGroup{}
+		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			server.Shutdown(ctx)
-			done <- struct{}{}
 		}()
-		cancel(cancelErr)
 
-		select {
-		case <-time.After(time.Second):
-		case <-done:
-		}
-
-		assert.ErrorIs(t, cancelErr, context.Cause(ctx))
+		wg.Wait()
+		assert.Error(t, ctx.Err())
 	})
 }
