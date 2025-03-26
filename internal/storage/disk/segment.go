@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-type segment struct {
+type Segment struct {
 	maxSegmentSize int
 	curSegmentSize int
 	directory      string
@@ -16,15 +16,15 @@ type segment struct {
 	log            *slog.Logger
 }
 
-func NewSegment(maxSegmentSize int, directory string, log *slog.Logger) *segment {
-	return &segment{
+func NewSegment(maxSegmentSize int, directory string, log *slog.Logger) *Segment {
+	return &Segment{
 		maxSegmentSize: maxSegmentSize,
 		directory:      directory,
 		log:            log,
 	}
 }
 
-func (s *segment) rotateSegment() (err error) {
+func (s *Segment) rotateSegment() (err error) {
 	if s.file != nil {
 		if err := s.file.Close(); err != nil {
 			s.log.Error("failed to close file", slog.String("filename", s.file.Name()), slog.Any("error", err))
@@ -41,7 +41,7 @@ func (s *segment) rotateSegment() (err error) {
 	return nil
 }
 
-func (s *segment) Write(data []byte) error {
+func (s *Segment) Write(data []byte) error {
 	if s.file == nil || s.curSegmentSize >= s.maxSegmentSize {
 		if err := s.rotateSegment(); err != nil {
 			return err

@@ -13,7 +13,7 @@ import (
 type Disk struct {
 	directory string
 	mu        sync.RWMutex
-	segment   *segment
+	segment   *Segment
 	log       *slog.Logger
 }
 
