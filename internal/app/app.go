@@ -35,11 +35,7 @@ func NewApp(
 
 	var database *storage.Database
 	if cfg.Wal != nil {
-		disk, err := disk.NewDisk(cfg, log)
-		if err != nil {
-			panic("failed to init disk: " + err.Error())
-		}
-
+		disk := disk.NewDisk(cfg, log)
 		logsManager := wal.NewLogsManager(disk, log)
 
 		wal, err := wal.NewWal(cfg, logsManager, logsManager, log)

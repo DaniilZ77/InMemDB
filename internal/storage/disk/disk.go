@@ -17,23 +17,19 @@ type Disk struct {
 	log       *slog.Logger
 }
 
-func NewDisk(cfg *config.Config, log *slog.Logger) (*Disk, error) {
+func NewDisk(cfg *config.Config, log *slog.Logger) *Disk {
 	return &Disk{
 		directory: cfg.Wal.DataDirectory,
 		segment:   NewSegment(cfg.Wal.MaxSegmentSize, cfg.Wal.DataDirectory, log),
 		log:       log,
-	}, nil
+	}
 }
 
 func (d *Disk) Write(data []byte) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	if err := d.segment.Write(data); err != nil {
-		return err
-	}
-
-	return nil
+	return d.segment.Write(data)
 }
 
 func (d *Disk) read(fileName string) (data []byte, err error) {
@@ -47,12 +43,7 @@ func (d *Disk) read(fileName string) (data []byte, err error) {
 		}
 	}()
 
-	data, err = io.ReadAll(file)
-	if err != nil {
-		return nil, err
-	}
-
-	return data, nil
+	return io.ReadAll(file)
 }
 
 func (d *Disk) Read() ([]byte, error) {

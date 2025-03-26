@@ -178,6 +178,8 @@ func TestRecover_Success(t *testing.T) {
 		assert.Equal(t, commands[i].Args, res[i].Args)
 		assert.Equal(t, commands[i].CommandType, int(res[i].Type))
 	}
+
+	assert.Equal(t, wal.batch.lsn, 4)
 }
 
 func TestRecover_Error(t *testing.T) {
