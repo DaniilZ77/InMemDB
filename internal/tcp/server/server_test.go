@@ -96,7 +96,7 @@ func TestServer(t *testing.T) {
 		assert.ErrorIs(t, err, io.EOF)
 	})
 
-	t.Run("context cancel", func(t *testing.T) {
+	t.Run("force shutdown after context cancel", func(t *testing.T) {
 		conn, err := net.Dial("tcp", address)
 		require.NoError(t, err)
 		defer conn.Close() // nolint
