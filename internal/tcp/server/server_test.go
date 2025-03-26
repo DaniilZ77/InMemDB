@@ -26,7 +26,7 @@ func TestServer(t *testing.T) {
 			Address:        "127.0.0.1:0",
 			MaxConnections: 5,
 			MaxMessageSize: 100,
-			IdleTimeout:    5 * time.Second,
+			IdleTimeout:    3 * time.Second,
 		},
 	}
 	server, err := NewServer(cfg, database, slog.New(slog.NewJSONHandler(io.Discard, nil)))
@@ -34,12 +34,8 @@ func TestServer(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	started := make(chan struct{})
-	go func() {
-		close(started)
-		server.Run(ctx)
-	}()
-	<-started
+	go server.Run(ctx)
+	time.Sleep(100 * time.Millisecond)
 
 	address := server.lst.Addr().String()
 	command := "set name Daniil"
@@ -82,7 +78,7 @@ func TestServer(t *testing.T) {
 		_, err = fmt.Fprintln(conn, command)
 		require.NoError(t, err)
 
-		err = conn.SetReadDeadline(time.Now().Add(500 * time.Millisecond))
+		err = conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
 		require.NoError(t, err)
 
 		_, err = conn.Read(make([]byte, 10))
@@ -94,7 +90,7 @@ func TestServer(t *testing.T) {
 		require.NoError(t, err)
 		defer conn.Close() // nolint
 
-		time.Sleep(6 * time.Second)
+		time.Sleep(3100 * time.Millisecond)
 
 		_, err = conn.Read(make([]byte, 10))
 		assert.ErrorIs(t, err, io.EOF)

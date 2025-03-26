@@ -44,12 +44,8 @@ func newTestWal(t *testing.T, ctx context.Context, batchSize int, batchTimeout t
 	wal, err := NewWal(cfg, logsReader, logsWriter, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
 
-	started := make(chan struct{})
-	go func() {
-		close(started)
-		wal.Start(ctx)
-	}()
-	<-started
+	go wal.Start(ctx)
+	time.Sleep(100 * time.Millisecond)
 
 	return wal, logsReader, logsWriter
 }
@@ -127,6 +123,7 @@ func TestSave_Error(t *testing.T) {
 
 	wal, _, logsWriter := newTestWal(t, ctx, 10, 500*time.Millisecond)
 	logsWriter.EXPECT().Write(mock.Anything).Return(errors.New("write error")).Once()
+
 	res := wal.Save(&parser.Command{
 		Type: 1,
 		Args: []string{"name", "Daniil"},
@@ -145,6 +142,7 @@ func TestSave_ContextCancel(t *testing.T) {
 		Type: 1,
 		Args: []string{"name", "Daniil"},
 	}
+
 	logsWriter.EXPECT().Write(mock.MatchedBy(func(commands []Command) bool {
 		return len(commands) == 1 && compareCommands(command, commands)
 	})).Return(nil).Once()
@@ -152,14 +150,13 @@ func TestSave_ContextCancel(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
-	started := make(chan struct{})
 	go func() {
 		defer wg.Done()
-		close(started)
 		res := wal.Save(command)
 		assert.True(t, res)
 	}()
-	<-started
+	time.Sleep(100 * time.Millisecond)
+
 	cancel()
 	wg.Wait()
 }
