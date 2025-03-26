@@ -42,7 +42,7 @@ func (c *Client) Close() error {
 }
 
 func (c *Client) Run() error {
-	defer c.Close()
+	defer c.Close() // nolint
 
 	clientReader := bufio.NewReader(os.Stdin)
 
