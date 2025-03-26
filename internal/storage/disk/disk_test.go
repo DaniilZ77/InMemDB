@@ -24,7 +24,7 @@ func clearDir(t *testing.T, dir string) {
 }
 
 func TestDisk(t *testing.T) {
-	const dir = "./testdata"
+	dir := t.TempDir()
 	const maxSegmentSize = 1000
 	testData := "testdata"
 

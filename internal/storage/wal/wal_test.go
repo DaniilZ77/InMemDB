@@ -59,10 +59,7 @@ func TestSave_Timeout(t *testing.T) {
 	}
 
 	logsWriter.EXPECT().Write(mock.MatchedBy(func(commands []Command) bool {
-		if len(commands) != commandsNumber {
-			return false
-		}
-		return compareCommands(command, commands)
+		return len(commands) == commandsNumber && compareCommands(command, commands)
 	})).Return(nil).Once()
 
 	wg := sync.WaitGroup{}
@@ -90,10 +87,7 @@ func TestSave_BatchOverflow(t *testing.T) {
 	}
 
 	logsWriter.EXPECT().Write(mock.MatchedBy(func(commands []Command) bool {
-		if len(commands) != batchSize {
-			return false
-		}
-		return compareCommands(command, commands)
+		return len(commands) == batchSize && compareCommands(command, commands)
 	})).Return(nil).Once()
 
 	wg := sync.WaitGroup{}
@@ -133,10 +127,7 @@ func TestSave_ContextCancel(t *testing.T) {
 	}
 
 	logsWriter.EXPECT().Write(mock.MatchedBy(func(commands []Command) bool {
-		if len(commands) != 1 {
-			return false
-		}
-		return compareCommands(command, commands)
+		return len(commands) == 1 && compareCommands(command, commands)
 	})).Return(nil).Once()
 
 	wg := sync.WaitGroup{}
