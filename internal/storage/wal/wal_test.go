@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
-	"github.com/DaniilZ77/InMemDB/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -32,14 +31,7 @@ func newTestWal(t *testing.T, ctx context.Context, batchSize int, batchTimeout t
 	logsReader := NewMockLogsReader(t)
 	logsWriter := NewMockLogsWriter(t)
 
-	cfg := &config.Config{
-		Wal: &config.Wal{
-			FlushingBatchSize:    batchSize,
-			FlushingBatchTimeout: batchTimeout,
-		},
-	}
-
-	wal, err := NewWal(cfg, logsReader, logsWriter, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	wal, err := NewWal(batchTimeout, batchSize, logsReader, logsWriter, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
 
 	go wal.Start(ctx)
@@ -178,12 +170,12 @@ func TestRecover_Success(t *testing.T) {
 	res, err := wal.Recover()
 	require.NoError(t, err)
 
-	assert.Len(t, res, 3)
+	assert.Len(t, res, len(commands))
 	for i := range res {
 		assert.Equal(t, commands[i].Args, res[i].Args)
 		assert.Equal(t, commands[i].CommandType, int(res[i].Type))
 	}
-	assert.Equal(t, wal.batch.lsn, 4)
+	assert.Equal(t, wal.batch.lsn, commands[len(commands)-1].LSN+1)
 }
 
 func TestRecover_Error(t *testing.T) {

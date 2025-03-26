@@ -1,7 +1,6 @@
 package server
 
 import (
-	"bufio"
 	"context"
 	"fmt"
 	"io"
@@ -13,7 +12,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/DaniilZ77/InMemDB/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -21,18 +19,12 @@ import (
 
 func TestServer(t *testing.T) {
 	database := NewMockDatabase(t)
-	cfg := &config.Config{
-		Network: config.Network{
-			Address:        "127.0.0.1:0",
-			MaxConnections: 5,
-			MaxMessageSize: 100,
-			IdleTimeout:    time.Second,
-		},
-	}
-	server, err := NewServer(cfg, database, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	const maxConnections = 5
+	server, err := NewServer("127.0.0.1:0", 100, time.Second, maxConnections, database, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	go server.Run(ctx) // nolint
 	time.Sleep(100 * time.Millisecond)
@@ -49,19 +41,18 @@ func TestServer(t *testing.T) {
 		require.NoError(t, err)
 		defer conn.Close() // nolint
 
-		resp := bufio.NewReader(conn)
-
 		_, err = fmt.Fprintln(conn, command)
 		require.NoError(t, err)
 
-		body, err := resp.ReadString('\n')
+		buf := make([]byte, 10)
+		n, err := conn.Read(buf)
 		require.NoError(t, err)
 
-		assert.Equal(t, "OK", strings.TrimSpace(body))
+		assert.Equal(t, "OK", strings.TrimSpace(string(buf[:n])))
 	})
 
 	t.Run("exceed client limit", func(t *testing.T) {
-		for range cfg.Network.MaxConnections {
+		for range maxConnections {
 			conn, err := net.Dial("tcp", address)
 			require.NoError(t, err)
 			defer conn.Close() // nolint

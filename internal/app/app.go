@@ -35,10 +35,10 @@ func NewApp(
 
 	var database *storage.Database
 	if cfg.Wal != nil {
-		disk := disk.NewDisk(cfg, log)
+		disk := disk.NewDisk(cfg.Wal.DataDirectory, cfg.Wal.MaxSegmentSize, log)
 		logsManager := wal.NewLogsManager(disk, log)
 
-		wal, err := wal.NewWal(cfg, logsManager, logsManager, log)
+		wal, err := wal.NewWal(cfg.Wal.FlushingBatchTimeout, cfg.Wal.FlushingBatchSize, logsManager, logsManager, log)
 		if err != nil {
 			panic("failed to init wal: " + err.Error())
 		}
@@ -61,7 +61,14 @@ func NewApp(
 		panic("failed to recover database: " + err.Error())
 	}
 
-	server, err := server.NewServer(cfg, database, log)
+	server, err := server.NewServer(
+		cfg.Network.Address,
+		cfg.Network.MaxMessageSize,
+		cfg.Network.IdleTimeout,
+		cfg.Network.MaxConnections,
+		database,
+		log,
+	)
 	if err != nil {
 		panic("failed to init server: " + err.Error())
 	}

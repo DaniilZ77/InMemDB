@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/DaniilZ77/InMemDB/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -28,12 +27,7 @@ func TestDisk(t *testing.T) {
 	const maxSegmentSize = 1000
 	testData := "testdata"
 
-	disk := NewDisk(&config.Config{
-		Wal: &config.Wal{
-			DataDirectory:  dir,
-			MaxSegmentSize: maxSegmentSize,
-		},
-	}, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	disk := NewDisk(dir, maxSegmentSize, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 
 	t.Run("write segment overflow", func(t *testing.T) {
 		t.Cleanup(func() { clearDir(t, dir) })

@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
-	"github.com/DaniilZ77/InMemDB/internal/config"
 )
 
 const (
@@ -41,13 +40,11 @@ type Wal struct {
 }
 
 func NewWal(
-	cfg *config.Config,
+	batchTimeout time.Duration,
+	batchSize int,
 	logsReader LogsReader,
 	logsWriter LogsWriter,
 	log *slog.Logger) (*Wal, error) {
-	if cfg == nil {
-		return nil, errors.New("config is nil")
-	}
 	if logsReader == nil {
 		return nil, errors.New("logs reader is nil")
 	}
@@ -62,9 +59,9 @@ func NewWal(
 		logsReader:   logsReader,
 		logsWriter:   logsWriter,
 		batchChannel: make(chan Batch),
-		batchTimeout: cfg.Wal.FlushingBatchTimeout,
+		batchTimeout: batchTimeout,
 		log:          log,
-		batch:        NewBatch(cfg.Wal.FlushingBatchSize),
+		batch:        NewBatch(batchSize),
 	}, nil
 }
 

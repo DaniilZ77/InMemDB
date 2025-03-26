@@ -6,8 +6,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-
-	"github.com/DaniilZ77/InMemDB/internal/config"
 )
 
 type Disk struct {
@@ -17,10 +15,10 @@ type Disk struct {
 	log       *slog.Logger
 }
 
-func NewDisk(cfg *config.Config, log *slog.Logger) *Disk {
+func NewDisk(dataDirectory string, maxSegmentSize int, log *slog.Logger) *Disk {
 	return &Disk{
-		directory: cfg.Wal.DataDirectory,
-		segment:   NewSegment(cfg.Wal.MaxSegmentSize, cfg.Wal.DataDirectory, log),
+		directory: dataDirectory,
+		segment:   NewSegment(maxSegmentSize, dataDirectory, log),
 		log:       log,
 	}
 }

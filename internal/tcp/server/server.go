@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/DaniilZ77/InMemDB/internal/concurrency"
-	"github.com/DaniilZ77/InMemDB/internal/config"
 )
 
 type Server struct {
@@ -29,12 +28,12 @@ type Database interface {
 }
 
 func NewServer(
-	cfg *config.Config,
+	address string,
+	maxMessageSize int,
+	idleTimeout time.Duration,
+	maxConnections int,
 	database Database,
 	log *slog.Logger) (*Server, error) {
-	if cfg == nil {
-		return nil, errors.New("config is nil")
-	}
 	if database == nil {
 		return nil, errors.New("database is nil")
 	}
@@ -42,20 +41,20 @@ func NewServer(
 		return nil, errors.New("logger is nil")
 	}
 
-	lst, err := net.Listen("tcp", cfg.Network.Address)
+	lst, err := net.Listen("tcp", address)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Info("started listening", slog.String("address", cfg.Network.Address))
+	log.Info("started listening", slog.String("address", address))
 
 	return &Server{
 		lst:         lst,
 		database:    database,
 		log:         log,
-		bufSize:     cfg.Network.MaxMessageSize,
-		idleTimeout: cfg.Network.IdleTimeout,
-		semaphore:   concurrency.NewSemaphore(cfg.Network.MaxConnections),
+		bufSize:     maxMessageSize,
+		idleTimeout: idleTimeout,
+		semaphore:   concurrency.NewSemaphore(maxConnections),
 	}, nil
 }
 
