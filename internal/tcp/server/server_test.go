@@ -103,17 +103,17 @@ func TestServer(t *testing.T) {
 
 		cancel()
 
-		ctx, cancel := context.WithCancel(context.Background())
-		cancel()
+		shutdownCtx, shutdownCancel := context.WithCancel(context.Background())
+		shutdownCancel()
 
 		wg := sync.WaitGroup{}
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			server.Shutdown(ctx)
+			server.Shutdown(shutdownCtx)
 		}()
-
 		wg.Wait()
+
 		assert.Error(t, ctx.Err())
 	})
 }
