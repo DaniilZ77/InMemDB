@@ -8,50 +8,60 @@ import (
 	"strings"
 )
 
-const (
-	newLine       = '\n'
-	requestCutset = " \n"
-)
-
 type Client struct {
-	address string
+	conn    net.Conn
+	bufSize int
 }
 
-func NewClient(address string) *Client {
-	return &Client{address: address}
+func NewClient(address string, bufSize int) (*Client, error) {
+	conn, err := net.Dial("tcp", address)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Client{conn: conn, bufSize: bufSize}, nil
+}
+
+func (c *Client) Send(req string) (string, error) {
+	_, err := fmt.Fprintln(c.conn, req)
+	if err != nil {
+		return "", err
+	}
+
+	resp := make([]byte, c.bufSize)
+	n, err := c.conn.Read(resp)
+	if err != nil {
+		return "", err
+	}
+
+	return string(resp[:n]), nil
+}
+
+func (c *Client) Close() error {
+	return c.conn.Close()
 }
 
 func (c *Client) Run() error {
-	conn, err := net.Dial("tcp", c.address)
-	if err != nil {
-		return err
-	}
-	defer conn.Close() // nolint
+	defer c.Close()
 
-	user := bufio.NewReader(os.Stdin)
-	server := bufio.NewReader(conn)
+	clientReader := bufio.NewReader(os.Stdin)
 
 	var req, resp string
+	var err error
 	for {
 		fmt.Print("# ")
 
-		if req, err = user.ReadString(newLine); err != nil {
+		if req, err = clientReader.ReadString('\n'); err != nil {
 			return err
 		}
-
-		req = strings.Trim(req, requestCutset)
+		req = strings.Trim(req, " \n")
 		if req == "exit" {
 			break
 		}
 
-		if _, err = fmt.Fprintln(conn, req); err != nil {
+		if resp, err = c.Send(req); err != nil {
 			return err
 		}
-
-		if resp, err = server.ReadString(newLine); err != nil {
-			return err
-		}
-
 		fmt.Print(resp)
 	}
 
