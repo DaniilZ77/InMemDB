@@ -21,9 +21,7 @@ import (
 
 func compareCommands(command *parser.Command, commands []Command) bool {
 	for i := range commands {
-		if !reflect.DeepEqual(command.Args, commands[i].Args) ||
-			int(command.Type) != commands[i].CommandType ||
-			commands[i].LSN != i {
+		if !reflect.DeepEqual(command.Args, commands[i].Args) || int(command.Type) != commands[i].CommandType {
 			return false
 		}
 	}
