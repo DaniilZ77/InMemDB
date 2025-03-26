@@ -7,15 +7,14 @@ import (
 	"testing"
 
 	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
-	"github.com/DaniilZ77/InMemDB/internal/storage/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestExecute_Success(t *testing.T) {
-	compute := mocks.NewCompute(t)
-	engine := mocks.NewEngine(t)
-	wal := mocks.NewWal(t)
+	compute := NewMockCompute(t)
+	engine := NewMockEngine(t)
+	wal := NewMockWal(t)
 
 	database, err := NewDatabase(compute, engine, wal, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
@@ -82,6 +81,8 @@ func TestExecute_Success(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
 			tt.mock()
 
 			res := database.Execute(tt.command)
@@ -91,8 +92,10 @@ func TestExecute_Success(t *testing.T) {
 }
 
 func TestExecute_ParserError(t *testing.T) {
-	compute := mocks.NewCompute(t)
-	engine := mocks.NewEngine(t)
+	t.Parallel()
+
+	compute := NewMockCompute(t)
+	engine := NewMockEngine(t)
 
 	database, err := NewDatabase(compute, engine, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
@@ -104,8 +107,10 @@ func TestExecute_ParserError(t *testing.T) {
 }
 
 func TestExecute_NilWal(t *testing.T) {
-	compute := mocks.NewCompute(t)
-	engine := mocks.NewEngine(t)
+	t.Parallel()
+
+	compute := NewMockCompute(t)
+	engine := NewMockEngine(t)
 
 	database, err := NewDatabase(compute, engine, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
@@ -122,9 +127,11 @@ func TestExecute_NilWal(t *testing.T) {
 }
 
 func TestExecute_WalSaveError(t *testing.T) {
-	compute := mocks.NewCompute(t)
-	engine := mocks.NewEngine(t)
-	wal := mocks.NewWal(t)
+	t.Parallel()
+
+	compute := NewMockCompute(t)
+	engine := NewMockEngine(t)
+	wal := NewMockWal(t)
 
 	database, err := NewDatabase(compute, engine, wal, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
@@ -142,9 +149,11 @@ func TestExecute_WalSaveError(t *testing.T) {
 }
 
 func TestRecover_Success(t *testing.T) {
-	compute := mocks.NewCompute(t)
-	engine := mocks.NewEngine(t)
-	wal := mocks.NewWal(t)
+	t.Parallel()
+
+	compute := NewMockCompute(t)
+	engine := NewMockEngine(t)
+	wal := NewMockWal(t)
 
 	database, err := NewDatabase(compute, engine, wal, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
@@ -170,8 +179,10 @@ func TestRecover_Success(t *testing.T) {
 }
 
 func TestRecover_NilWal(t *testing.T) {
-	compute := mocks.NewCompute(t)
-	engine := mocks.NewEngine(t)
+	t.Parallel()
+
+	compute := NewMockCompute(t)
+	engine := NewMockEngine(t)
 
 	database, err := NewDatabase(compute, engine, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)

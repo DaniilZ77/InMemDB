@@ -40,7 +40,9 @@ func NewApp(
 			panic("failed to init disk: " + err.Error())
 		}
 
-		wal, err := wal.NewWal(cfg, disk, log)
+		logsManager := wal.NewLogsManager(disk, log)
+
+		wal, err := wal.NewWal(cfg, logsManager, logsManager, log)
 		if err != nil {
 			panic("failed to init wal: " + err.Error())
 		}

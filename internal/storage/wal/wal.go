@@ -17,32 +17,51 @@ const (
 	statusError   = false
 )
 
-type Wal struct {
-	logsManager *logsManager
+//go:generate mockery --name=LogsReader --case=snake --inpackage --inpackage-suffix --with-expecter
+type LogsReader interface {
+	Read() ([]Command, error)
+}
 
-	batchChannel chan batch
+//go:generate mockery --name=LogsWriter --case=snake --inpackage --inpackage-suffix --with-expecter
+type LogsWriter interface {
+	Write([]Command) error
+}
+
+type Wal struct {
+	logsReader LogsReader
+	logsWriter LogsWriter
+
+	batchChannel chan Batch
 	batchTimeout time.Duration
 
 	log *slog.Logger
 
 	mu    sync.Mutex
-	batch *batch
+	batch *Batch
 }
 
-func NewWal(cfg *config.Config, disk Disk, log *slog.Logger) (*Wal, error) {
+func NewWal(
+	cfg *config.Config,
+	logsReader LogsReader,
+	logsWriter LogsWriter,
+	log *slog.Logger) (*Wal, error) {
 	if cfg == nil {
 		return nil, errors.New("config is nil")
 	}
-	if disk == nil {
-		return nil, errors.New("disk is nil")
+	if logsReader == nil {
+		return nil, errors.New("logs reader is nil")
+	}
+	if logsWriter == nil {
+		return nil, errors.New("logs writer is nil")
 	}
 	if log == nil {
 		return nil, errors.New("logger is nil")
 	}
 
 	return &Wal{
-		logsManager:  NewLogsManager(disk, log),
-		batchChannel: make(chan batch),
+		logsReader:   logsReader,
+		logsWriter:   logsWriter,
+		batchChannel: make(chan Batch),
 		batchTimeout: cfg.Wal.FlushingBatchTimeout,
 		log:          log,
 		batch:        NewBatch(cfg.Wal.FlushingBatchSize),
@@ -117,12 +136,12 @@ func (w *Wal) flushAll() {
 	}
 }
 
-func (w *Wal) flushBatch(batch batch) {
+func (w *Wal) flushBatch(batch Batch) {
 	if len(batch.commands) == 0 {
 		return
 	}
 
-	err := w.logsManager.Write(batch.commands)
+	err := w.logsWriter.Write(batch.commands)
 	if err != nil {
 		w.log.Error("failed to flush batch", slog.Any("error", err))
 		batch.NotifyFlushed(statusError)
@@ -133,7 +152,7 @@ func (w *Wal) flushBatch(batch batch) {
 }
 
 func (w *Wal) Recover() ([]parser.Command, error) {
-	commands, err := w.logsManager.Read()
+	commands, err := w.logsReader.Read()
 	if err != nil {
 		return nil, err
 	}

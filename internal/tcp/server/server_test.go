@@ -13,14 +13,13 @@ import (
 	"time"
 
 	"github.com/DaniilZ77/InMemDB/internal/config"
-	"github.com/DaniilZ77/InMemDB/internal/tcp/server/mocks"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 func TestServer(t *testing.T) {
-	database := mocks.NewDatabase(t)
+	database := NewMockDatabase(t)
 
 	cfg := &config.Config{
 		Network: config.Network{
@@ -37,9 +36,7 @@ func TestServer(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	go func() {
-		if err := server.Run(ctx); err != nil {
-			t.Log(err)
-		}
+		server.Run(ctx) // nolint
 	}()
 
 	time.Sleep(500 * time.Millisecond)

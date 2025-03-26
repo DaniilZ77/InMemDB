@@ -2,18 +2,18 @@ package wal
 
 import "github.com/DaniilZ77/InMemDB/internal/compute/parser"
 
-type batch struct {
+type Batch struct {
 	lsn         int
 	batchSize   int
 	commands    []Command
 	doneChannel chan bool
 }
 
-func NewBatch(batchSize int) *batch {
-	return &batch{batchSize: batchSize, doneChannel: make(chan bool)}
+func NewBatch(batchSize int) *Batch {
+	return &Batch{batchSize: batchSize, doneChannel: make(chan bool)}
 }
 
-func (b *batch) AppendCommand(command *parser.Command) {
+func (b *Batch) AppendCommand(command *parser.Command) {
 	b.commands = append(b.commands, Command{
 		LSN:         b.lsn,
 		CommandType: int(command.Type),
@@ -22,22 +22,22 @@ func (b *batch) AppendCommand(command *parser.Command) {
 	b.lsn++
 }
 
-func (b *batch) ResetBatch() {
+func (b *Batch) ResetBatch() {
 	b.commands = nil
 	b.doneChannel = make(chan bool)
 }
 
-func (b *batch) NotifyFlushed(status bool) {
+func (b *Batch) NotifyFlushed(status bool) {
 	defer close(b.doneChannel)
 	for range b.commands {
 		b.doneChannel <- status
 	}
 }
 
-func (b *batch) IsFull() bool {
+func (b *Batch) IsFull() bool {
 	return len(b.commands) >= b.batchSize
 }
 
-func (b *batch) WaitFlushed() bool {
+func (b *Batch) WaitFlushed() bool {
 	return <-b.doneChannel
 }

@@ -8,19 +8,19 @@ import (
 	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
 )
 
-//go:generate mockery --name=Compute --with-expecter
+//go:generate mockery --name=Compute --case=snake --inpackage --inpackage-suffix --with-expecter
 type Compute interface {
 	Parse(source string) (*parser.Command, error)
 }
 
-//go:generate mockery --name=Engine --with-expecter
+//go:generate mockery --name=Engine --case=snake --inpackage --inpackage-suffix --with-expecter
 type Engine interface {
 	Del(key string)
 	Get(key string) (string, bool)
 	Set(key, value string)
 }
 
-//go:generate mockery --name=Wal --with-expecter
+//go:generate mockery --name=Wal --case=snake --inpackage --inpackage-suffix --with-expecter
 type Wal interface {
 	Save(command *parser.Command) bool
 	Recover() ([]parser.Command, error)

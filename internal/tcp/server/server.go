@@ -23,7 +23,7 @@ type Server struct {
 	wg          sync.WaitGroup
 }
 
-//go:generate mockery --name=Database --with-expecter
+//go:generate mockery --name=Database --case=snake --inpackage --inpackage-suffix --with-expecter
 type Database interface {
 	Execute(source string) string
 }

@@ -6,34 +6,35 @@ import (
 	"log/slog"
 )
 
+//go:generate mockery --name=Disk --case=snake --inpackage --inpackage-suffix --with-expecter
 type Disk interface {
 	Write([]byte) error
 	Read() ([]byte, error)
 }
 
-type logsManager struct {
+type LogsManager struct {
 	disk Disk
 	log  *slog.Logger
 }
 
-func NewLogsManager(disk Disk, log *slog.Logger) *logsManager {
-	return &logsManager{
+func NewLogsManager(disk Disk, log *slog.Logger) *LogsManager {
+	return &LogsManager{
 		disk: disk,
 		log:  log,
 	}
 }
 
-func (w *logsManager) Write(commands []Command) error {
-	var buf []byte
+func (w *LogsManager) Write(commands []Command) error {
+	var data []byte
 	for _, command := range commands {
 		encodedCommand, err := command.Encode()
 		if err != nil {
 			return err
 		}
-		buf = append(buf, encodedCommand...)
+		data = append(data, encodedCommand...)
 	}
 
-	if err := w.disk.Write(buf); err != nil {
+	if err := w.disk.Write(data); err != nil {
 		w.log.Error("failed to write data on disk", slog.Any("error", err))
 		return err
 	}
@@ -41,7 +42,7 @@ func (w *logsManager) Write(commands []Command) error {
 	return nil
 }
 
-func (w *logsManager) Read() ([]Command, error) {
+func (w *LogsManager) Read() ([]Command, error) {
 	data, err := w.disk.Read()
 	if err != nil {
 		return nil, err
