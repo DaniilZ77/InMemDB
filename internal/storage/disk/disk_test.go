@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,12 +26,12 @@ func clearDir(t *testing.T, dir string) {
 func TestDisk(t *testing.T) {
 	dir := t.TempDir()
 	const maxSegmentSize = 1000
-	testData := "testdata"
 
 	disk := NewDisk(dir, maxSegmentSize, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 
 	t.Run("write segment overflow", func(t *testing.T) {
 		t.Cleanup(func() { clearDir(t, dir) })
+		testData := "testdata"
 		iterationsNumber := maxSegmentSize/len(testData) + 2
 		for range iterationsNumber {
 			err := disk.Write([]byte(testData))
@@ -39,28 +40,28 @@ func TestDisk(t *testing.T) {
 
 		entries, err := os.ReadDir(dir)
 		require.NoError(t, err)
-
 		assert.Len(t, entries, 2)
 	})
 
 	t.Run("read", func(t *testing.T) {
 		t.Cleanup(func() { clearDir(t, dir) })
-
-		createLogFile := func(index int) {
-			file, err := os.OpenFile(filepath.Join(dir, fmt.Sprintf("testfile%d.log", index)), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		testData1 := "lorem ipsum 1"
+		testData2 := "lorem ipsum 2"
+		testData3 := "lorem ipsum 3"
+		createLogFile := func(data string) {
+			file, err := os.OpenFile(filepath.Join(dir, fmt.Sprintf("testfile%d.log", time.Now().UnixMilli())), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 			require.NoError(t, err)
 
-			_, err = file.Write([]byte(testData))
+			_, err = file.Write([]byte(data))
 			require.NoError(t, err)
 		}
 
-		createLogFile(1)
-		createLogFile(2)
-		createLogFile(3)
+		createLogFile(testData1)
+		createLogFile(testData2)
+		createLogFile(testData3)
 
 		data, err := disk.Read()
 		require.NoError(t, err)
-
-		assert.Equal(t, testData+testData+testData, string(data))
+		assert.Equal(t, testData1+testData2+testData3, string(data))
 	})
 }

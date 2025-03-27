@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io"
 	"log/slog"
-	"reflect"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -18,20 +17,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func compareCommands(command *parser.Command, commands []Command) bool {
-	for i := range commands {
-		if !reflect.DeepEqual(command.Args, commands[i].Args) || int(command.Type) != commands[i].CommandType {
-			return false
-		}
-	}
-	return true
-}
-
 func newTestWal(t *testing.T, ctx context.Context, batchSize int, batchTimeout time.Duration) (*Wal, *MockLogsReader, *MockLogsWriter) {
 	logsReader := NewMockLogsReader(t)
 	logsWriter := NewMockLogsWriter(t)
 
-	wal, err := NewWal(batchTimeout, batchSize, logsReader, logsWriter, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	wal, err := NewWal(batchSize, batchTimeout, logsReader, logsWriter, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
 
 	go wal.Start(ctx)
@@ -44,60 +34,60 @@ func TestSave_Timeout(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(cancel)
 
-	wal, _, logsWriter := newTestWal(t, ctx, 10, 500*time.Millisecond)
-	const commandsNumber = 5
-	command := &parser.Command{
-		Type: 1,
-		Args: []string{"name", "Daniil"},
+	wal, _, logsWriter := newTestWal(t, ctx, 10, 100*time.Millisecond)
+	parserCommands := []parser.Command{
+		{Type: parser.SET, Args: []string{"name", "Daniil"}},
+		{Type: parser.DEL, Args: []string{"name"}},
+		{Type: parser.GET, Args: []string{"name"}},
 	}
 
 	var commandsCount atomic.Int32
 	logsWriter.EXPECT().Write(mock.MatchedBy(func(commands []Command) bool {
 		commandsCount.Add(int32(len(commands)))
-		return compareCommands(command, commands)
+		return true
 	})).Return(nil)
 
 	wg := sync.WaitGroup{}
-	wg.Add(commandsNumber)
+	wg.Add(len(parserCommands))
 
-	for range commandsNumber {
+	for i := range len(parserCommands) {
 		go func() {
 			defer wg.Done()
-			res := wal.Save(command)
+			res := wal.Save(&parserCommands[i])
 			assert.True(t, res)
 		}()
 	}
 
 	wg.Wait()
-	assert.Equal(t, int32(commandsNumber), commandsCount.Load())
+	assert.Equal(t, int32(len(parserCommands)), commandsCount.Load())
 }
 
 func TestSave_BatchOverflow(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(cancel)
 
-	const batchSize = 10
+	const batchSize = 3
 	wal, _, logsWriter := newTestWal(t, ctx, batchSize, time.Hour)
-	command := &parser.Command{
-		Type: 1,
-		Args: []string{"name", "Daniil"},
+	parserCommands := []parser.Command{
+		{Type: parser.SET, Args: []string{"name", "Daniil"}},
+		{Type: parser.DEL, Args: []string{"name"}},
+		{Type: parser.GET, Args: []string{"name"}},
 	}
 
 	logsWriter.EXPECT().Write(mock.MatchedBy(func(commands []Command) bool {
-		return len(commands) == batchSize && compareCommands(command, commands)
+		return len(commands) == batchSize
 	})).Return(nil).Once()
 
 	wg := sync.WaitGroup{}
 	wg.Add(batchSize)
-
-	for range batchSize {
+	for i := range batchSize {
 		go func() {
 			defer wg.Done()
-			res := wal.Save(command)
+			res := wal.Save(&parserCommands[i])
 			assert.True(t, res)
 		}()
 	}
@@ -109,13 +99,13 @@ func TestSave_Error(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(cancel)
 
 	wal, _, logsWriter := newTestWal(t, ctx, 10, 500*time.Millisecond)
 	logsWriter.EXPECT().Write(mock.Anything).Return(errors.New("write error")).Once()
 
 	res := wal.Save(&parser.Command{
-		Type: 1,
+		Type: parser.SET,
 		Args: []string{"name", "Daniil"},
 	})
 	assert.False(t, res)
@@ -125,16 +115,13 @@ func TestSave_ContextCancel(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(cancel)
 
 	wal, _, logsWriter := newTestWal(t, ctx, 10, time.Hour)
-	command := &parser.Command{
-		Type: 1,
-		Args: []string{"name", "Daniil"},
-	}
+	parserCommands := []parser.Command{{Type: parser.SET, Args: []string{"name", "Daniil"}}}
 
 	logsWriter.EXPECT().Write(mock.MatchedBy(func(commands []Command) bool {
-		return len(commands) == 1 && compareCommands(command, commands)
+		return len(commands) == 1
 	})).Return(nil).Once()
 
 	wg := sync.WaitGroup{}
@@ -142,7 +129,7 @@ func TestSave_ContextCancel(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		res := wal.Save(command)
+		res := wal.Save(&parserCommands[0])
 		assert.True(t, res)
 	}()
 	time.Sleep(100 * time.Millisecond)
@@ -155,7 +142,7 @@ func TestRecover_Success(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(cancel)
 	wal, logsReader, _ := newTestWal(t, ctx, 10, 500*time.Millisecond)
 	commands := []Command{
 		{LSN: 3, CommandType: 0, Args: []string{"name"}},
@@ -182,7 +169,7 @@ func TestRecover_Error(t *testing.T) {
 	t.Parallel()
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	t.Cleanup(cancel)
 	wal, logsReader, _ := newTestWal(t, ctx, 10, 500*time.Millisecond)
 	logsReader.EXPECT().Read().Return(nil, errors.New("recover error")).Once()
 

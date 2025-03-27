@@ -15,11 +15,11 @@ import (
 type Server struct {
 	lst         net.Listener
 	database    Database
-	log         *slog.Logger
 	bufSize     int
 	idleTimeout time.Duration
 	semaphore   *concurrency.Semaphore
 	wg          sync.WaitGroup
+	log         *slog.Logger
 }
 
 //go:generate mockery --name=Database --case=snake --inpackage --inpackage-suffix --with-expecter
@@ -51,10 +51,10 @@ func NewServer(
 	return &Server{
 		lst:         lst,
 		database:    database,
-		log:         log,
 		bufSize:     maxMessageSize,
 		idleTimeout: idleTimeout,
 		semaphore:   concurrency.NewSemaphore(maxConnections),
+		log:         log,
 	}, nil
 }
 
@@ -90,6 +90,8 @@ func (s *Server) Shutdown(ctx context.Context) {
 }
 
 func (s *Server) handler(ctx context.Context, conn net.Conn) {
+	s.log.Debug("new connection", slog.String("remote", conn.RemoteAddr().String()))
+
 	defer func() {
 		if err := conn.Close(); err != nil {
 			s.log.Error("failed to close connection", slog.Any("error", err))

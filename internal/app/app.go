@@ -35,10 +35,10 @@ func NewApp(
 
 	var database *storage.Database
 	if cfg.Wal != nil {
-		disk := disk.NewDisk(cfg.Wal.DataDirectory, cfg.Wal.MaxSegmentSize, log)
+		disk := disk.NewDisk(cfg.Wal.DataDirectory, cfg.Wal.MaxSegmentSizeBytes, log)
 		logsManager := wal.NewLogsManager(disk, log)
 
-		wal, err := wal.NewWal(cfg.Wal.FlushingBatchTimeout, cfg.Wal.FlushingBatchSize, logsManager, logsManager, log)
+		wal, err := wal.NewWal(cfg.Wal.FlushingBatchSize, cfg.Wal.FlushingBatchTimeout, logsManager, logsManager, log)
 		if err != nil {
 			panic("failed to init wal: " + err.Error())
 		}
@@ -63,7 +63,7 @@ func NewApp(
 
 	server, err := server.NewServer(
 		cfg.Network.Address,
-		cfg.Network.MaxMessageSize,
+		cfg.Network.MaxMessageSizeBytes,
 		cfg.Network.IdleTimeout,
 		cfg.Network.MaxConnections,
 		database,

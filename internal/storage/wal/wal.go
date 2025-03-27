@@ -40,8 +40,8 @@ type Wal struct {
 }
 
 func NewWal(
-	batchTimeout time.Duration,
 	batchSize int,
+	batchTimeout time.Duration,
 	logsReader LogsReader,
 	logsWriter LogsWriter,
 	log *slog.Logger) (*Wal, error) {

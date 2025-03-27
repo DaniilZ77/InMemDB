@@ -9,13 +9,13 @@ type Engine struct {
 	shards []*Shard
 }
 
-func NewEngine(size int) (*Engine, error) {
-	if size < 1 {
-		return nil, errors.New("shards amount must be positive")
+func NewEngine(shardsNumber int) (*Engine, error) {
+	if shardsNumber < 1 {
+		return nil, errors.New("shards number must be positive")
 	}
 
-	shards := make([]*Shard, 0, size)
-	for range size {
+	shards := make([]*Shard, 0, shardsNumber)
+	for range shardsNumber {
 		shards = append(shards, NewShard())
 	}
 

@@ -1,8 +1,10 @@
 package config
 
 import (
+	"errors"
 	"flag"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -16,10 +18,11 @@ type Config struct {
 }
 
 type Network struct {
-	Address        string        `yaml:"address" env-default:"127.0.0.1:3223"`
-	MaxConnections int           `yaml:"max_connections" env-default:"100"`
-	MaxMessageSize int           `yaml:"max_message_size" env-default:"4000"`
-	IdleTimeout    time.Duration `yaml:"idle_timeout" env-default:"5m"`
+	Address             string        `yaml:"address" env-default:"127.0.0.1:3223"`
+	MaxConnections      int           `yaml:"max_connections" env-default:"100"`
+	MaxMessageSizeBytes int           `yaml:"-"`
+	MaxMessageSize      string        `yaml:"max_message_size" env-default:"4KB"`
+	IdleTimeout         time.Duration `yaml:"idle_timeout" env-default:"5m"`
 }
 
 type Engine struct {
@@ -30,7 +33,8 @@ type Engine struct {
 type Wal struct {
 	FlushingBatchSize    int           `yaml:"flushing_batch_size" env-default:"100"`
 	FlushingBatchTimeout time.Duration `yaml:"flushing_batch_timeout" env-default:"10ms"`
-	MaxSegmentSize       int           `yaml:"max_segment_size" env-default:"10_000_000"`
+	MaxSegmentSizeBytes  int           `yaml:"-"`
+	MaxSegmentSize       string        `yaml:"max_segment_size" env-default:"10MB"`
 	DataDirectory        string        `yaml:"data_directory" env-default:"/data/wal"`
 }
 
@@ -41,9 +45,20 @@ func NewConfig() *Config {
 	}
 
 	var cfg Config
+	var err error
 
-	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
+	if err = cleanenv.ReadConfig(configPath, &cfg); err != nil {
 		panic("failed to read config: " + err.Error())
+	}
+
+	cfg.Network.MaxMessageSizeBytes, err = parseSize(cfg.Network.MaxMessageSize)
+	if err != nil {
+		panic("failed to parse max message size: " + err.Error())
+	}
+
+	cfg.Wal.MaxSegmentSizeBytes, err = parseSize(cfg.Wal.MaxSegmentSize)
+	if err != nil {
+		panic("failed to parse max segment size: " + err.Error())
 	}
 
 	return &cfg
@@ -58,4 +73,27 @@ func getConfigPath() (configPath string, ok bool) {
 	}
 
 	return configPath, configPath != ""
+}
+
+func parseSize(size string) (int, error) {
+	sizeBytes := 0
+	var unitMeasure string
+	var i int
+	for ; i < len(size) && '0' <= size[i] && size[i] <= '9'; i++ {
+		sizeBytes = sizeBytes*10 + int(size[i]-'0')
+	}
+	unitMeasure = strings.TrimSpace(size[i:])
+
+	switch strings.ToUpper(unitMeasure) {
+	case "B":
+		return sizeBytes, nil
+	case "KB":
+		return sizeBytes << 10, nil
+	case "MB":
+		return sizeBytes << 20, nil
+	case "GB":
+		return sizeBytes << 30, nil
+	default:
+		return 0, errors.New("invalid unit of measure")
+	}
 }

@@ -159,17 +159,9 @@ func TestRecover_Success(t *testing.T) {
 	require.NoError(t, err)
 
 	wal.EXPECT().Recover().Return([]parser.Command{
-		{
-			Type: parser.SET,
-			Args: []string{"name", "Daniil"},
-		},
-		{
-			Type: parser.DEL,
-			Args: []string{"name"},
-		},
-		{
-			Type: parser.GET,
-		},
+		{Type: parser.SET, Args: []string{"name", "Daniil"}},
+		{Type: parser.DEL, Args: []string{"name"}},
+		{Type: parser.GET, Args: []string{"name"}},
 	}, nil).Once()
 	engine.EXPECT().Set("name", "Daniil").Return().Once()
 	engine.EXPECT().Del("name").Return().Once()
