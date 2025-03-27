@@ -17,7 +17,7 @@ tasks:
       - golangci-lint run
   test:
     cmds:
-      - go test -v -race -timeout 30s ./...
+      - go test -race -count=1 -timeout 30s ./...
   build:
     cmds:
       - go build -o ./bin/db ./cmd/db
