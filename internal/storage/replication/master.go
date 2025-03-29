@@ -35,25 +35,27 @@ func (m *Master) GetReplicationStream() <-chan []wal.Command {
 	return nil
 }
 
-func (m *Master) HandleRequest(request []byte) ([]byte, error) {
+func (m *Master) HandleRequest(request []byte) (reponse []byte, err error) {
+	defer func() {
+		if err != nil {
+			reponse, err = common.Encode(NewErrorResponse())
+		}
+	}()
+
 	decodedRequest, err := common.DecodeOne[Request](request)
 	if err != nil {
-		return nil, err
+		return
 	}
 
 	filename, err := m.disk.NextSegment(decodedRequest.LastSegment)
-	if err != nil {
-		return nil, err
-	}
-
-	if filename == "" {
-		return common.Encode(NewResponse("", nil))
+	if err != nil || filename == "" {
+		return
 	}
 
 	segment, err := os.ReadFile(filepath.Join(m.walDirectory, filename))
 	if err != nil {
-		return nil, err
+		return
 	}
 
-	return common.Encode(NewResponse(filename, segment))
+	return common.Encode(NewSuccessResponse(filename, segment))
 }

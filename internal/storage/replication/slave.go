@@ -75,11 +75,6 @@ func (s *Slave) Start(ctx context.Context) (err error) {
 	}()
 
 	for {
-		if ctx.Err() != nil {
-			s.log.Info("stopping slave")
-			return nil
-		}
-
 		select {
 		case <-ctx.Done():
 			s.log.Info("stopping slave")
@@ -130,7 +125,8 @@ func (s *Slave) handle(ctx context.Context) error {
 		return err
 	}
 
-	if len(response.Segment) == 0 {
+	if !response.Ok {
+		s.log.Warn("error response from master")
 		return nil
 	}
 

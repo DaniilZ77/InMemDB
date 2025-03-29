@@ -48,17 +48,17 @@ func NewWalReplica(ctx context.Context, config *config.Config, log *slog.Logger)
 		}
 	}
 
-	flushingBatchTimeout := config.Wal.FlushingBatchTimeout
-	flushingBatchSize := config.Wal.FlushingBatchSize
-	dataDirectory := config.Wal.DataDirectory
-	if flushingBatchTimeout <= 0 {
-		flushingBatchSize = defaultFlushingBatchSize
+	flushingBatchTimeout := defaultFlushingBatchTimeout
+	flushingBatchSize := defaultFlushingBatchSize
+	dataDirectory := defaultDataDirectory
+	if config.Wal.FlushingBatchTimeout > 0 {
+		flushingBatchTimeout = config.Wal.FlushingBatchTimeout
 	}
-	if flushingBatchSize <= 0 {
-		flushingBatchSize = defaultFlushingBatchSize
+	if config.Wal.FlushingBatchSize > 0 {
+		flushingBatchSize = config.Wal.FlushingBatchSize
 	}
-	if dataDirectory == "" {
-		dataDirectory = defaultDataDirectory
+	if config.Wal.DataDirectory != "" {
+		dataDirectory = config.Wal.DataDirectory
 	}
 
 	maxSegmentSize, err := parseBytes(config.Wal.MaxSegmentSize)

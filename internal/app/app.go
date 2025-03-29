@@ -10,14 +10,18 @@ import (
 
 	"github.com/DaniilZ77/InMemDB/internal/config"
 	"github.com/DaniilZ77/InMemDB/internal/tcp/server"
+	"golang.org/x/sync/errgroup"
 )
 
 type App struct {
+	Ctx           context.Context
 	mainServer    *server.Server
 	replicaServer *server.Server
 }
 
 func NewApp(ctx context.Context, config *config.Config) (*App, error) {
+	group, groupCtx := errgroup.WithContext(ctx)
+
 	log, err := NewLogger(config)
 	if err != nil {
 		return nil, err
@@ -33,7 +37,7 @@ func NewApp(ctx context.Context, config *config.Config) (*App, error) {
 		return nil, fmt.Errorf("failed to init engine: %w", err)
 	}
 
-	wal, replica, err := NewWalReplica(ctx, config, log)
+	wal, replica, err := NewWalReplica(groupCtx, config, log)
 	if err != nil {
 		return nil, fmt.Errorf("failed to init wal and replica: %w", err)
 	}
@@ -53,14 +57,12 @@ func NewApp(ctx context.Context, config *config.Config) (*App, error) {
 		return nil, fmt.Errorf("failed to init main server: %w", err)
 	}
 
-	go func() {
-		if err := mainServer.Run(ctx, func(b []byte) ([]byte, error) {
+	group.Go(func() error {
+		return mainServer.Run(groupCtx, func(b []byte) ([]byte, error) {
 			response := database.Execute(string(b))
 			return []byte(response), nil
-		}); err != nil {
-			log.Warn("main server stopped", slog.Any("error", err))
-		}
-	}()
+		})
+	})
 
 	var replicaServer *server.Server
 	switch r := replica.(type) {
@@ -70,25 +72,22 @@ func NewApp(ctx context.Context, config *config.Config) (*App, error) {
 			return nil, fmt.Errorf("failed to init replica server: %w", err)
 		}
 
-		go func() {
-			if err := replicaServer.Run(ctx, func(b []byte) ([]byte, error) {
+		group.Go(func() error {
+			return replicaServer.Run(groupCtx, func(b []byte) ([]byte, error) {
 				response, err := r.HandleRequest(b)
 				return response, err
-			}); err != nil {
-				log.Warn("replica server stopped", slog.Any("error", err))
-			}
-		}()
+			})
+		})
 	case *replication.Slave:
-		go func() {
-			if err := r.Start(ctx); err != nil {
-				log.Warn("slave replica stopped", slog.Any("error", err))
-				panic(err)
-			}
-		}()
-	default:
+		group.Go(func() error {
+			err = r.Start(groupCtx)
+			log.Info("slave replica stopped", slog.Any("error", err))
+			return err
+		})
 	}
 
 	return &App{
+		Ctx:           groupCtx,
 		mainServer:    mainServer,
 		replicaServer: replicaServer,
 	}, nil

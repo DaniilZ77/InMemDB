@@ -54,9 +54,6 @@ func NewWal(
 		return nil, errors.New("logger is nil")
 	}
 
-	log.Info("flushing batch timeout", slog.Duration("timeout", batchTimeout))
-	log.Info("flushing batch size", slog.Int("size", batchSize))
-
 	return &Wal{
 		logsReader:   logsReader,
 		logsWriter:   logsWriter,

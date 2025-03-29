@@ -20,7 +20,7 @@ func main() {
 		panic(err)
 	}
 
-	<-ctx.Done()
+	<-app.Ctx.Done()
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
