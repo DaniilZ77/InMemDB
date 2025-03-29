@@ -17,12 +17,12 @@ func (_m *MockLogsReader) EXPECT() *MockLogsReader_Expecter {
 	return &MockLogsReader_Expecter{mock: &_m.Mock}
 }
 
-// Read provides a mock function with no fields
-func (_m *MockLogsReader) Read() ([]Command, error) {
+// ReadLogs provides a mock function with no fields
+func (_m *MockLogsReader) ReadLogs() ([]Command, error) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
-		panic("no return value specified for Read")
+		panic("no return value specified for ReadLogs")
 	}
 
 	var r0 []Command
@@ -47,29 +47,29 @@ func (_m *MockLogsReader) Read() ([]Command, error) {
 	return r0, r1
 }
 
-// MockLogsReader_Read_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Read'
-type MockLogsReader_Read_Call struct {
+// MockLogsReader_ReadLogs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReadLogs'
+type MockLogsReader_ReadLogs_Call struct {
 	*mock.Call
 }
 
-// Read is a helper method to define mock.On call
-func (_e *MockLogsReader_Expecter) Read() *MockLogsReader_Read_Call {
-	return &MockLogsReader_Read_Call{Call: _e.mock.On("Read")}
+// ReadLogs is a helper method to define mock.On call
+func (_e *MockLogsReader_Expecter) ReadLogs() *MockLogsReader_ReadLogs_Call {
+	return &MockLogsReader_ReadLogs_Call{Call: _e.mock.On("ReadLogs")}
 }
 
-func (_c *MockLogsReader_Read_Call) Run(run func()) *MockLogsReader_Read_Call {
+func (_c *MockLogsReader_ReadLogs_Call) Run(run func()) *MockLogsReader_ReadLogs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run()
 	})
 	return _c
 }
 
-func (_c *MockLogsReader_Read_Call) Return(_a0 []Command, _a1 error) *MockLogsReader_Read_Call {
+func (_c *MockLogsReader_ReadLogs_Call) Return(_a0 []Command, _a1 error) *MockLogsReader_ReadLogs_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockLogsReader_Read_Call) RunAndReturn(run func() ([]Command, error)) *MockLogsReader_Read_Call {
+func (_c *MockLogsReader_ReadLogs_Call) RunAndReturn(run func() ([]Command, error)) *MockLogsReader_ReadLogs_Call {
 	_c.Call.Return(run)
 	return _c
 }

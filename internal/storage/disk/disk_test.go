@@ -34,7 +34,7 @@ func TestDisk(t *testing.T) {
 		testData := "testdata"
 		iterationsNumber := maxSegmentSize/len(testData) + 2
 		for range iterationsNumber {
-			err := disk.Write([]byte(testData))
+			err := disk.WriteSegment([]byte(testData))
 			require.NoError(t, err)
 		}
 
@@ -60,7 +60,7 @@ func TestDisk(t *testing.T) {
 		createLogFile(testData2)
 		createLogFile(testData3)
 
-		data, err := disk.Read()
+		data, err := disk.ReadSegments()
 		require.NoError(t, err)
 		assert.Equal(t, testData1+testData2+testData3, string(data))
 	})

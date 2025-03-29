@@ -10,8 +10,10 @@ type handler func(context.Context, net.Conn)
 
 func (s *Server) clientsLimiter(next handler) handler {
 	return func(ctx context.Context, conn net.Conn) {
-		s.semaphore.Acquire()
-		defer s.semaphore.Release()
+		if s.semaphore != nil {
+			s.semaphore.Acquire()
+			defer s.semaphore.Release()
+		}
 
 		next(ctx, conn)
 	}

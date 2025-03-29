@@ -7,49 +7,49 @@ import (
 	"log/slog"
 	"net"
 	"os"
-	"strings"
 	"sync"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 func TestServer(t *testing.T) {
-	database := NewMockDatabase(t)
 	const maxConnections = 5
 	const maxMessageSize = 100
-	server, err := NewServer("127.0.0.1:0", maxMessageSize, time.Second, maxConnections, database, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	server, err := NewServer(
+		"127.0.0.1:0",
+		maxMessageSize,
+		slog.New(slog.NewJSONHandler(io.Discard, nil)),
+		WithIdleTimeout(time.Second),
+		WithMaxConnections(maxConnections))
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	go server.Run(ctx) // nolint
+	go server.Run(ctx, func(b []byte) ([]byte, error) { // nolint
+		return []byte("OK"), nil
+	})
 	time.Sleep(100 * time.Millisecond)
 
-	address := server.lst.Addr().String()
+	address := server.listener.Addr().String()
 	command := "set name Daniil"
 
 	t.Run("success", func(t *testing.T) {
-		database.EXPECT().Execute(mock.MatchedBy(func(source string) bool {
-			return strings.TrimSpace(source) == command
-		})).Return("OK").Once()
-
 		conn, err := net.Dial("tcp", address)
 		require.NoError(t, err)
-		defer conn.Close() // nolint
+		t.Cleanup(func() { conn.Close() }) // nolint
 
 		_, err = fmt.Fprintln(conn, command)
 		require.NoError(t, err)
 
-		buf := make([]byte, 10)
-		n, err := conn.Read(buf)
+		buffer := make([]byte, 1024)
+		n, err := conn.Read(buffer)
 		require.NoError(t, err)
 
-		assert.Equal(t, "OK", strings.TrimSpace(string(buf[:n])))
+		assert.Equal(t, "OK", string(buffer[:n]))
 	})
 
 	t.Run("exceed client limit", func(t *testing.T) {
@@ -58,8 +58,6 @@ func TestServer(t *testing.T) {
 			require.NoError(t, err)
 			t.Cleanup(func() { conn.Close() }) // nolint
 		}
-
-		database.EXPECT().Execute(mock.Anything).Return("OK").Once()
 
 		conn, err := net.Dial("tcp", address)
 		require.NoError(t, err)
@@ -96,7 +94,7 @@ func TestServer(t *testing.T) {
 		cancel()
 
 		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-		defer shutdownCancel()
+		t.Cleanup(shutdownCancel)
 
 		wg := sync.WaitGroup{}
 		wg.Add(1)

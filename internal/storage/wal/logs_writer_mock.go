@@ -17,12 +17,12 @@ func (_m *MockLogsWriter) EXPECT() *MockLogsWriter_Expecter {
 	return &MockLogsWriter_Expecter{mock: &_m.Mock}
 }
 
-// Write provides a mock function with given fields: _a0
-func (_m *MockLogsWriter) Write(_a0 []Command) error {
+// WriteLogs provides a mock function with given fields: _a0
+func (_m *MockLogsWriter) WriteLogs(_a0 []Command) error {
 	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Write")
+		panic("no return value specified for WriteLogs")
 	}
 
 	var r0 error
@@ -35,30 +35,30 @@ func (_m *MockLogsWriter) Write(_a0 []Command) error {
 	return r0
 }
 
-// MockLogsWriter_Write_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Write'
-type MockLogsWriter_Write_Call struct {
+// MockLogsWriter_WriteLogs_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'WriteLogs'
+type MockLogsWriter_WriteLogs_Call struct {
 	*mock.Call
 }
 
-// Write is a helper method to define mock.On call
+// WriteLogs is a helper method to define mock.On call
 //   - _a0 []Command
-func (_e *MockLogsWriter_Expecter) Write(_a0 interface{}) *MockLogsWriter_Write_Call {
-	return &MockLogsWriter_Write_Call{Call: _e.mock.On("Write", _a0)}
+func (_e *MockLogsWriter_Expecter) WriteLogs(_a0 interface{}) *MockLogsWriter_WriteLogs_Call {
+	return &MockLogsWriter_WriteLogs_Call{Call: _e.mock.On("WriteLogs", _a0)}
 }
 
-func (_c *MockLogsWriter_Write_Call) Run(run func(_a0 []Command)) *MockLogsWriter_Write_Call {
+func (_c *MockLogsWriter_WriteLogs_Call) Run(run func(_a0 []Command)) *MockLogsWriter_WriteLogs_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].([]Command))
 	})
 	return _c
 }
 
-func (_c *MockLogsWriter_Write_Call) Return(_a0 error) *MockLogsWriter_Write_Call {
+func (_c *MockLogsWriter_WriteLogs_Call) Return(_a0 error) *MockLogsWriter_WriteLogs_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockLogsWriter_Write_Call) RunAndReturn(run func([]Command) error) *MockLogsWriter_Write_Call {
+func (_c *MockLogsWriter_WriteLogs_Call) RunAndReturn(run func([]Command) error) *MockLogsWriter_WriteLogs_Call {
 	_c.Call.Return(run)
 	return _c
 }

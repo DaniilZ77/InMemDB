@@ -44,7 +44,7 @@ func TestSave_Timeout(t *testing.T) {
 	}
 
 	var commandsCount atomic.Int32
-	logsWriter.EXPECT().Write(mock.MatchedBy(func(commands []Command) bool {
+	logsWriter.EXPECT().WriteLogs(mock.MatchedBy(func(commands []Command) bool {
 		commandsCount.Add(int32(len(commands)))
 		return true
 	})).Return(nil)
@@ -78,7 +78,7 @@ func TestSave_BatchOverflow(t *testing.T) {
 		{Type: parser.GET, Args: []string{"name"}},
 	}
 
-	logsWriter.EXPECT().Write(mock.MatchedBy(func(commands []Command) bool {
+	logsWriter.EXPECT().WriteLogs(mock.MatchedBy(func(commands []Command) bool {
 		return len(commands) == batchSize
 	})).Return(nil).Once()
 
@@ -102,7 +102,7 @@ func TestSave_Error(t *testing.T) {
 	t.Cleanup(cancel)
 
 	wal, _, logsWriter := newTestWal(t, ctx, 10, 500*time.Millisecond)
-	logsWriter.EXPECT().Write(mock.Anything).Return(errors.New("write error")).Once()
+	logsWriter.EXPECT().WriteLogs(mock.Anything).Return(errors.New("write error")).Once()
 
 	res := wal.Save(&parser.Command{
 		Type: parser.SET,
@@ -120,7 +120,7 @@ func TestSave_ContextCancel(t *testing.T) {
 	wal, _, logsWriter := newTestWal(t, ctx, 10, time.Hour)
 	parserCommands := []parser.Command{{Type: parser.SET, Args: []string{"name", "Daniil"}}}
 
-	logsWriter.EXPECT().Write(mock.MatchedBy(func(commands []Command) bool {
+	logsWriter.EXPECT().WriteLogs(mock.MatchedBy(func(commands []Command) bool {
 		return len(commands) == 1
 	})).Return(nil).Once()
 
@@ -149,7 +149,7 @@ func TestRecover_Success(t *testing.T) {
 		{LSN: 2, CommandType: 1, Args: []string{"name", "Daniil"}},
 		{LSN: 1, CommandType: 2, Args: []string{"name"}},
 	}
-	logsReader.EXPECT().Read().Return(commands, nil).Once()
+	logsReader.EXPECT().ReadLogs().Return(commands, nil).Once()
 	slices.SortFunc(commands, func(command1 Command, command2 Command) int {
 		return command1.LSN - command2.LSN
 	})
@@ -160,7 +160,7 @@ func TestRecover_Success(t *testing.T) {
 	assert.Len(t, res, len(commands))
 	for i := range res {
 		assert.Equal(t, commands[i].Args, res[i].Args)
-		assert.Equal(t, commands[i].CommandType, int(res[i].Type))
+		assert.Equal(t, commands[i].CommandType, res[i].CommandType)
 	}
 	assert.Equal(t, wal.batch.lsn, commands[len(commands)-1].LSN+1)
 }
@@ -171,7 +171,7 @@ func TestRecover_Error(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 	wal, logsReader, _ := newTestWal(t, ctx, 10, 500*time.Millisecond)
-	logsReader.EXPECT().Read().Return(nil, errors.New("recover error")).Once()
+	logsReader.EXPECT().ReadLogs().Return(nil, errors.New("recover error")).Once()
 
 	_, err := wal.Recover()
 	assert.Error(t, err)

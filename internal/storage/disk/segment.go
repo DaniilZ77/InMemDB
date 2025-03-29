@@ -31,8 +31,8 @@ func (s *Segment) rotateSegment() (err error) {
 		}
 	}
 
-	fileName := fmt.Sprintf("wal_%d.log", time.Now().UnixMilli())
-	s.file, err = os.OpenFile(filepath.Join(s.directory, fileName), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	filename := fmt.Sprintf("wal_%d.log", time.Now().UnixMilli())
+	s.file, err = os.OpenFile(filepath.Join(s.directory, filename), os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 	if err != nil {
 		return err
 	}

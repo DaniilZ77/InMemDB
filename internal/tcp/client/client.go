@@ -5,65 +5,62 @@ import (
 	"fmt"
 	"net"
 	"os"
-	"strings"
 )
 
 type Client struct {
-	conn    net.Conn
-	bufSize int
+	connection net.Conn
+	bufferSize int
 }
 
-func NewClient(address string, bufSize int) (*Client, error) {
-	conn, err := net.Dial("tcp", address)
+func NewClient(address string, bufferSize int) (*Client, error) {
+	connection, err := net.Dial("tcp", address)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Client{conn: conn, bufSize: bufSize}, nil
+	return &Client{
+		connection: connection,
+		bufferSize: bufferSize,
+	}, nil
 }
 
-func (c *Client) Send(req string) (string, error) {
-	_, err := fmt.Fprintln(c.conn, req)
+func (c *Client) Send(request []byte) ([]byte, error) {
+	_, err := c.connection.Write(request)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	resp := make([]byte, c.bufSize)
-	n, err := c.conn.Read(resp)
+	response := make([]byte, c.bufferSize)
+	n, err := c.connection.Read(response)
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	return string(resp[:n]), nil
+	return response[:n], nil
 }
 
 func (c *Client) Close() error {
-	return c.conn.Close()
+	return c.connection.Close()
 }
 
 func (c *Client) Run() error {
 	defer c.Close() // nolint
 
-	clientReader := bufio.NewReader(os.Stdin)
-
-	var req, resp string
-	var err error
+	stdinReader := bufio.NewReader(os.Stdin)
+	request := make([]byte, c.bufferSize)
 	for {
 		fmt.Print("# ")
 
-		if req, err = clientReader.ReadString('\n'); err != nil {
+		n, err := stdinReader.Read(request)
+		if err != nil {
 			return err
-		}
-		req = strings.Trim(req, " \n")
-		if req == "exit" {
-			break
 		}
 
-		if resp, err = c.Send(req); err != nil {
+		response, err := c.Send(request[:n])
+		if err != nil {
 			return err
 		}
-		fmt.Print(resp)
+
+		fmt.Println(string(response))
 	}
-
-	return nil
 }

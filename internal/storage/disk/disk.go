@@ -1,16 +1,18 @@
 package disk
 
 import (
-	"io"
+	"errors"
 	"log/slog"
 	"os"
 	"path/filepath"
-	"sync"
+	"slices"
+	"strings"
 )
+
+var ErrSegmentNotFound = errors.New("segment not found")
 
 type Disk struct {
 	directory string
-	mu        sync.RWMutex
 	segment   *Segment
 	log       *slog.Logger
 }
@@ -23,31 +25,11 @@ func NewDisk(dataDirectory string, maxSegmentSize int, log *slog.Logger) *Disk {
 	}
 }
 
-func (d *Disk) Write(data []byte) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
+func (d *Disk) WriteSegment(data []byte) error {
 	return d.segment.Write(data)
 }
 
-func (d *Disk) read(fileName string) (data []byte, err error) {
-	file, err := os.Open(filepath.Join(d.directory, fileName))
-	if err != nil {
-		return nil, err
-	}
-	defer func() {
-		if err := file.Close(); err != nil {
-			d.log.Error("failed to close file", slog.String("filename", fileName), slog.Any("error", err))
-		}
-	}()
-
-	return io.ReadAll(file)
-}
-
-func (d *Disk) Read() ([]byte, error) {
-	d.mu.RLock()
-	defer d.mu.RUnlock()
-
+func (d *Disk) ReadSegments() ([]byte, error) {
 	entries, err := os.ReadDir(d.directory)
 	if err != nil {
 		return nil, err
@@ -55,11 +37,7 @@ func (d *Disk) Read() ([]byte, error) {
 
 	var data []byte
 	for i := range entries {
-		if entries[i].IsDir() {
-			continue
-		}
-
-		segment, err := d.read(entries[i].Name())
+		segment, err := os.ReadFile(filepath.Join(d.directory, entries[i].Name()))
 		if err != nil {
 			return nil, err
 		}
@@ -68,4 +46,56 @@ func (d *Disk) Read() ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+func (d *Disk) NextSegment(filename string) (string, error) {
+	entries, err := os.ReadDir(d.directory)
+	if err != nil {
+		return "", err
+	}
+
+	if len(entries) == 0 {
+		return "", nil
+	}
+
+	index, _ := slices.BinarySearchFunc(entries, filename, func(dir os.DirEntry, filename string) int {
+		return strings.Compare(dir.Name(), filename)
+	})
+
+	if filename == "" || index == len(entries)-1 {
+		return entries[index].Name(), nil
+	}
+
+	return entries[index+1].Name(), nil
+}
+
+func (d *Disk) LastSegment() (string, error) {
+	entries, err := os.ReadDir(d.directory)
+	if err != nil {
+		return "", err
+	}
+
+	if len(entries) == 0 {
+		return "", nil
+	}
+
+	return entries[len(entries)-1].Name(), nil
+}
+
+func (d *Disk) WriteFile(filename string, data []byte) error {
+	file, err := os.OpenFile(filepath.Join(d.directory, filename), os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0666)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			d.log.Warn("failed to close file", slog.String("filename", filename), slog.Any("error", err))
+		}
+	}()
+
+	if _, err = file.Write(data); err != nil {
+		return err
+	}
+
+	return file.Sync()
 }

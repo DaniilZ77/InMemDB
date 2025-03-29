@@ -1,8 +1,5 @@
 version: '3'
 
-vars:
-  CLIENT_ADDRESS: 127.0.0.1:3223
-
 tasks:
   server:
     env:
@@ -11,7 +8,7 @@ tasks:
       - go run ./cmd/db
   client:
     cmds:
-      - go run ./cmd/client --address={{.CLIENT_ADDRESS}}
+      - go run ./cmd/client --address={{.SERVER_ADDRESS}}
   lint:
     cmds:
       - golangci-lint run

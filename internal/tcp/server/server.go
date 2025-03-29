@@ -3,7 +3,6 @@ package server
 import (
 	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net"
 	"sync"
@@ -13,14 +12,18 @@ import (
 )
 
 type Server struct {
-	lst         net.Listener
-	database    Database
-	bufSize     int
+	listener    net.Listener
+	bufferSize  int
 	idleTimeout time.Duration
+	logic       func([]byte) ([]byte, error)
 	semaphore   *concurrency.Semaphore
 	wg          sync.WaitGroup
 	log         *slog.Logger
 }
+
+const (
+	defaultBufferSize = 4 << 10
+)
 
 //go:generate mockery --name=Database --case=snake --inpackage --inpackage-suffix --with-expecter
 type Database interface {
@@ -30,48 +33,50 @@ type Database interface {
 func NewServer(
 	address string,
 	maxMessageSize int,
-	idleTimeout time.Duration,
-	maxConnections int,
-	database Database,
-	log *slog.Logger) (*Server, error) {
-	if database == nil {
-		return nil, errors.New("database is nil")
-	}
+	log *slog.Logger, opts ...ServerOption) (*Server, error) {
 	if log == nil {
 		return nil, errors.New("logger is nil")
 	}
 
-	lst, err := net.Listen("tcp", address)
+	listener, err := net.Listen("tcp", address)
 	if err != nil {
 		return nil, err
 	}
 
 	log.Info("started listening", slog.String("address", address))
 
-	return &Server{
-		lst:         lst,
-		database:    database,
-		bufSize:     maxMessageSize,
-		idleTimeout: idleTimeout,
-		semaphore:   concurrency.NewSemaphore(maxConnections),
-		log:         log,
-	}, nil
+	server := &Server{
+		listener:   listener,
+		bufferSize: maxMessageSize,
+		log:        log,
+	}
+
+	for _, opt := range opts {
+		opt(server)
+	}
+
+	if server.bufferSize == 0 {
+		server.bufferSize = defaultBufferSize
+	}
+
+	return server, nil
 }
 
-func (s *Server) Run(ctx context.Context) error {
+func (s *Server) Run(ctx context.Context, logic func([]byte) ([]byte, error)) error {
+	s.logic = logic
 	for {
-		conn, err := s.lst.Accept()
+		connection, err := s.listener.Accept()
 		if err != nil {
 			return err
 		}
 
 		s.wg.Add(1)
-		go s.recoverer(s.clientsLimiter(s.handler))(ctx, conn)
+		go s.recoverer(s.clientsLimiter(s.handler))(ctx, connection)
 	}
 }
 
 func (s *Server) Shutdown(ctx context.Context) {
-	if err := s.lst.Close(); err != nil {
+	if err := s.listener.Close(); err != nil {
 		s.log.Error("failed to close listener", slog.Any("error", err))
 	}
 
@@ -101,20 +106,21 @@ func (s *Server) handler(ctx context.Context, conn net.Conn) {
 
 	var err error
 	var n int
-	var resp string
-	buf := make([]byte, s.bufSize)
+	buffer := make([]byte, s.bufferSize)
 	for {
 		if ctx.Err() != nil {
 			return
 		}
 
-		err = conn.SetReadDeadline(time.Now().Add(s.idleTimeout))
-		if err != nil {
-			s.log.Error("set read deadline failure", slog.Any("error", err))
-			break
+		if s.idleTimeout != 0 {
+			err = conn.SetReadDeadline(time.Now().Add(s.idleTimeout))
+			if err != nil {
+				s.log.Error("set read deadline failure", slog.Any("error", err))
+				break
+			}
 		}
 
-		n, err = conn.Read(buf)
+		n, err = conn.Read(buffer)
 		if err != nil {
 			var ne net.Error
 			if errors.As(err, &ne) && ne.Timeout() {
@@ -125,8 +131,13 @@ func (s *Server) handler(ctx context.Context, conn net.Conn) {
 			break
 		}
 
-		resp = s.database.Execute(string(buf[:n]))
-		if _, err = fmt.Fprintln(conn, resp); err != nil {
+		response, err := s.logic(buffer[:n])
+		if err != nil {
+			s.log.Error("failed to execute logic", slog.Any("error", err))
+			break
+		}
+
+		if _, err = conn.Write(response); err != nil {
 			s.log.Error("write failure", slog.Any("error", err))
 			break
 		}

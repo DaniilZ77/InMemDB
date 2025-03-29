@@ -14,8 +14,8 @@ import (
 func TestLogsManager_Success(t *testing.T) {
 	t.Parallel()
 
-	disk := NewMockDisk(t)
-	logsManager := NewLogsManager(disk, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	mockDisk := NewMockDisk(t)
+	logsManager := NewLogsManager(mockDisk, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	commands := []Command{
 		{LSN: 1, CommandType: 0, Args: []string{"name"}},
 		{LSN: 2, CommandType: 1, Args: []string{"name", "Daniil"}},
@@ -23,24 +23,24 @@ func TestLogsManager_Success(t *testing.T) {
 	}
 
 	var encodedCommands []byte
-	disk.EXPECT().Write(mock.MatchedBy(func(data []byte) bool {
+	mockDisk.EXPECT().WriteSegment(mock.MatchedBy(func(data []byte) bool {
 		encodedCommands = data
 		return true
 	})).Return(nil).Once()
 
-	err := logsManager.Write(commands)
+	err := logsManager.WriteLogs(commands)
 	require.NoError(t, err)
 
-	disk.EXPECT().Read().Return(encodedCommands, nil).Once()
+	mockDisk.EXPECT().ReadSegments().Return(encodedCommands, nil).Once()
 
-	decodedCommands, err := logsManager.Read()
+	decodedCommands, err := logsManager.ReadLogs()
 	require.NoError(t, err)
 	assert.Equal(t, commands, decodedCommands)
 }
 
 func TestLogsManager_Error(t *testing.T) {
-	disk := NewMockDisk(t)
-	logsManager := NewLogsManager(disk, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	mockDisk := NewMockDisk(t)
+	logsManager := NewLogsManager(mockDisk, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	expectedErr := errors.New("logs manager error")
 
 	tests := []struct {
@@ -51,20 +51,20 @@ func TestLogsManager_Error(t *testing.T) {
 		{
 			name: "read error",
 			call: func() error {
-				_, err := logsManager.Read()
+				_, err := logsManager.ReadLogs()
 				return err
 			},
 			mock: func() {
-				disk.EXPECT().Read().Return(nil, expectedErr).Once()
+				mockDisk.EXPECT().ReadSegments().Return(nil, expectedErr).Once()
 			},
 		},
 		{
 			name: "write error",
 			call: func() error {
-				return logsManager.Write([]Command{})
+				return logsManager.WriteLogs([]Command{})
 			},
 			mock: func() {
-				disk.EXPECT().Write([]byte(nil)).Return(expectedErr).Once()
+				mockDisk.EXPECT().WriteSegment(mock.Anything).Return(expectedErr).Once()
 			},
 		},
 	}

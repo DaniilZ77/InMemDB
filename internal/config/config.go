@@ -3,65 +3,72 @@ package config
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"os"
-	"strings"
 	"time"
 
-	"github.com/ilyakaznacheev/cleanenv"
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-	Engine   Engine  `yaml:"engine"`
-	Network  Network `yaml:"network"`
-	LogLevel string  `yaml:"log_level" env-default:"info"`
-	Wal      *Wal    `yaml:"wal"`
+	Engine      *Engine      `yaml:"engine"`
+	Network     *Network     `yaml:"network"`
+	LogLevel    string       `yaml:"log_level"`
+	Wal         *Wal         `yaml:"wal"`
+	Replication *Replication `yaml:"replication"`
 }
 
 type Network struct {
-	Address             string        `yaml:"address" env-default:"127.0.0.1:3223"`
-	MaxConnections      int           `yaml:"max_connections" env-default:"100"`
-	MaxMessageSizeBytes int           `yaml:"-"`
-	MaxMessageSize      string        `yaml:"max_message_size" env-default:"4KB"`
-	IdleTimeout         time.Duration `yaml:"idle_timeout" env-default:"5m"`
+	Address        string        `yaml:"address"`
+	MaxConnections int           `yaml:"max_connections"`
+	MaxMessageSize string        `yaml:"max_message_size"`
+	IdleTimeout    time.Duration `yaml:"idle_timeout"`
 }
 
 type Engine struct {
-	Type         string `yaml:"type" env-default:"in_memory"`
-	ShardsNumber int    `yaml:"shards_number" env-default:"16"`
+	Type         string `yaml:"type"`
+	ShardsNumber int    `yaml:"shards_number"`
 }
 
 type Wal struct {
-	FlushingBatchSize    int           `yaml:"flushing_batch_size" env-default:"100"`
-	FlushingBatchTimeout time.Duration `yaml:"flushing_batch_timeout" env-default:"10ms"`
-	MaxSegmentSizeBytes  int           `yaml:"-"`
-	MaxSegmentSize       string        `yaml:"max_segment_size" env-default:"10MB"`
-	DataDirectory        string        `yaml:"data_directory" env-default:"/data/wal"`
+	FlushingBatchSize    int           `yaml:"flushing_batch_size"`
+	FlushingBatchTimeout time.Duration `yaml:"flushing_batch_timeout"`
+	MaxSegmentSize       string        `yaml:"max_segment_size"`
+	DataDirectory        string        `yaml:"data_directory"`
 }
 
-func NewConfig() *Config {
+type Replication struct {
+	ReplicaType   string        `yaml:"replica_type"`
+	MasterAddress string        `yaml:"master_address"`
+	SyncInterval  time.Duration `yaml:"sync_interval"`
+}
+
+func MustConfig() *Config {
+	config, err := NewConfig()
+	if err != nil {
+		panic(err)
+	}
+
+	return config
+}
+
+func NewConfig() (*Config, error) {
 	configPath, ok := getConfigPath()
 	if !ok {
-		panic("config path is not set")
+		return nil, errors.New("config path is not set")
 	}
 
-	var cfg Config
-	var err error
-
-	if err = cleanenv.ReadConfig(configPath, &cfg); err != nil {
-		panic("failed to read config: " + err.Error())
-	}
-
-	cfg.Network.MaxMessageSizeBytes, err = parseSize(cfg.Network.MaxMessageSize)
+	data, err := os.ReadFile(configPath)
 	if err != nil {
-		panic("failed to parse max message size: " + err.Error())
+		return nil, fmt.Errorf("failed to read config: %w", err)
 	}
 
-	cfg.Wal.MaxSegmentSizeBytes, err = parseSize(cfg.Wal.MaxSegmentSize)
-	if err != nil {
-		panic("failed to parse max segment size: " + err.Error())
+	var config Config
+	if err = yaml.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to read config: %w", err)
 	}
 
-	return &cfg
+	return &config, nil
 }
 
 func getConfigPath() (configPath string, ok bool) {
@@ -73,27 +80,4 @@ func getConfigPath() (configPath string, ok bool) {
 	}
 
 	return configPath, configPath != ""
-}
-
-func parseSize(size string) (int, error) {
-	sizeBytes := 0
-	var unitMeasure string
-	var i int
-	for ; i < len(size) && '0' <= size[i] && size[i] <= '9'; i++ {
-		sizeBytes = sizeBytes*10 + int(size[i]-'0')
-	}
-	unitMeasure = strings.TrimSpace(size[i:])
-
-	switch strings.ToUpper(unitMeasure) {
-	case "B":
-		return sizeBytes, nil
-	case "KB":
-		return sizeBytes << 10, nil
-	case "MB":
-		return sizeBytes << 20, nil
-	case "GB":
-		return sizeBytes << 30, nil
-	default:
-		return 0, errors.New("invalid unit of measure")
-	}
 }

@@ -4,6 +4,7 @@ package storage
 
 import (
 	parser "github.com/DaniilZ77/InMemDB/internal/compute/parser"
+	wal "github.com/DaniilZ77/InMemDB/internal/storage/wal"
 	mock "github.com/stretchr/testify/mock"
 )
 
@@ -21,23 +22,23 @@ func (_m *MockWal) EXPECT() *MockWal_Expecter {
 }
 
 // Recover provides a mock function with no fields
-func (_m *MockWal) Recover() ([]parser.Command, error) {
+func (_m *MockWal) Recover() ([]wal.Command, error) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
 		panic("no return value specified for Recover")
 	}
 
-	var r0 []parser.Command
+	var r0 []wal.Command
 	var r1 error
-	if rf, ok := ret.Get(0).(func() ([]parser.Command, error)); ok {
+	if rf, ok := ret.Get(0).(func() ([]wal.Command, error)); ok {
 		return rf()
 	}
-	if rf, ok := ret.Get(0).(func() []parser.Command); ok {
+	if rf, ok := ret.Get(0).(func() []wal.Command); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]parser.Command)
+			r0 = ret.Get(0).([]wal.Command)
 		}
 	}
 
@@ -67,12 +68,12 @@ func (_c *MockWal_Recover_Call) Run(run func()) *MockWal_Recover_Call {
 	return _c
 }
 
-func (_c *MockWal_Recover_Call) Return(_a0 []parser.Command, _a1 error) *MockWal_Recover_Call {
+func (_c *MockWal_Recover_Call) Return(_a0 []wal.Command, _a1 error) *MockWal_Recover_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockWal_Recover_Call) RunAndReturn(run func() ([]parser.Command, error)) *MockWal_Recover_Call {
+func (_c *MockWal_Recover_Call) RunAndReturn(run func() ([]wal.Command, error)) *MockWal_Recover_Call {
 	_c.Call.Return(run)
 	return _c
 }

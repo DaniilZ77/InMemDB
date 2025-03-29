@@ -17,12 +17,12 @@ func (_m *MockDisk) EXPECT() *MockDisk_Expecter {
 	return &MockDisk_Expecter{mock: &_m.Mock}
 }
 
-// Read provides a mock function with no fields
-func (_m *MockDisk) Read() ([]byte, error) {
+// ReadSegments provides a mock function with no fields
+func (_m *MockDisk) ReadSegments() ([]byte, error) {
 	ret := _m.Called()
 
 	if len(ret) == 0 {
-		panic("no return value specified for Read")
+		panic("no return value specified for ReadSegments")
 	}
 
 	var r0 []byte
@@ -47,39 +47,39 @@ func (_m *MockDisk) Read() ([]byte, error) {
 	return r0, r1
 }
 
-// MockDisk_Read_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Read'
-type MockDisk_Read_Call struct {
+// MockDisk_ReadSegments_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ReadSegments'
+type MockDisk_ReadSegments_Call struct {
 	*mock.Call
 }
 
-// Read is a helper method to define mock.On call
-func (_e *MockDisk_Expecter) Read() *MockDisk_Read_Call {
-	return &MockDisk_Read_Call{Call: _e.mock.On("Read")}
+// ReadSegments is a helper method to define mock.On call
+func (_e *MockDisk_Expecter) ReadSegments() *MockDisk_ReadSegments_Call {
+	return &MockDisk_ReadSegments_Call{Call: _e.mock.On("ReadSegments")}
 }
 
-func (_c *MockDisk_Read_Call) Run(run func()) *MockDisk_Read_Call {
+func (_c *MockDisk_ReadSegments_Call) Run(run func()) *MockDisk_ReadSegments_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run()
 	})
 	return _c
 }
 
-func (_c *MockDisk_Read_Call) Return(_a0 []byte, _a1 error) *MockDisk_Read_Call {
+func (_c *MockDisk_ReadSegments_Call) Return(_a0 []byte, _a1 error) *MockDisk_ReadSegments_Call {
 	_c.Call.Return(_a0, _a1)
 	return _c
 }
 
-func (_c *MockDisk_Read_Call) RunAndReturn(run func() ([]byte, error)) *MockDisk_Read_Call {
+func (_c *MockDisk_ReadSegments_Call) RunAndReturn(run func() ([]byte, error)) *MockDisk_ReadSegments_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// Write provides a mock function with given fields: _a0
-func (_m *MockDisk) Write(_a0 []byte) error {
+// WriteSegment provides a mock function with given fields: _a0
+func (_m *MockDisk) WriteSegment(_a0 []byte) error {
 	ret := _m.Called(_a0)
 
 	if len(ret) == 0 {
-		panic("no return value specified for Write")
+		panic("no return value specified for WriteSegment")
 	}
 
 	var r0 error
@@ -92,30 +92,30 @@ func (_m *MockDisk) Write(_a0 []byte) error {
 	return r0
 }
 
-// MockDisk_Write_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Write'
-type MockDisk_Write_Call struct {
+// MockDisk_WriteSegment_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'WriteSegment'
+type MockDisk_WriteSegment_Call struct {
 	*mock.Call
 }
 
-// Write is a helper method to define mock.On call
+// WriteSegment is a helper method to define mock.On call
 //   - _a0 []byte
-func (_e *MockDisk_Expecter) Write(_a0 interface{}) *MockDisk_Write_Call {
-	return &MockDisk_Write_Call{Call: _e.mock.On("Write", _a0)}
+func (_e *MockDisk_Expecter) WriteSegment(_a0 interface{}) *MockDisk_WriteSegment_Call {
+	return &MockDisk_WriteSegment_Call{Call: _e.mock.On("WriteSegment", _a0)}
 }
 
-func (_c *MockDisk_Write_Call) Run(run func(_a0 []byte)) *MockDisk_Write_Call {
+func (_c *MockDisk_WriteSegment_Call) Run(run func(_a0 []byte)) *MockDisk_WriteSegment_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].([]byte))
 	})
 	return _c
 }
 
-func (_c *MockDisk_Write_Call) Return(_a0 error) *MockDisk_Write_Call {
+func (_c *MockDisk_WriteSegment_Call) Return(_a0 error) *MockDisk_WriteSegment_Call {
 	_c.Call.Return(_a0)
 	return _c
 }
 
-func (_c *MockDisk_Write_Call) RunAndReturn(run func([]byte) error) *MockDisk_Write_Call {
+func (_c *MockDisk_WriteSegment_Call) RunAndReturn(run func([]byte) error) *MockDisk_WriteSegment_Call {
 	_c.Call.Return(run)
 	return _c
 }

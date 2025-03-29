@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
+	"github.com/DaniilZ77/InMemDB/internal/storage/wal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -16,7 +17,7 @@ func TestExecute_Success(t *testing.T) {
 	engine := NewMockEngine(t)
 	wal := NewMockWal(t)
 
-	database, err := NewDatabase(compute, engine, wal, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	database, err := NewDatabase(compute, engine, wal, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -97,7 +98,7 @@ func TestExecute_ParserError(t *testing.T) {
 	compute := NewMockCompute(t)
 	engine := NewMockEngine(t)
 
-	database, err := NewDatabase(compute, engine, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	database, err := NewDatabase(compute, engine, nil, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
 
 	compute.EXPECT().Parse("get name").Return(nil, errors.New("internal error")).Once()
@@ -112,7 +113,7 @@ func TestExecute_NilWal(t *testing.T) {
 	compute := NewMockCompute(t)
 	engine := NewMockEngine(t)
 
-	database, err := NewDatabase(compute, engine, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	database, err := NewDatabase(compute, engine, nil, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
 
 	commandStr := "set name Daniil"
@@ -133,7 +134,7 @@ func TestExecute_WalSaveError(t *testing.T) {
 	engine := NewMockEngine(t)
 	wal := NewMockWal(t)
 
-	database, err := NewDatabase(compute, engine, wal, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	database, err := NewDatabase(compute, engine, wal, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
 
 	command := &parser.Command{
@@ -153,15 +154,15 @@ func TestRecover_Success(t *testing.T) {
 
 	compute := NewMockCompute(t)
 	engine := NewMockEngine(t)
-	wal := NewMockWal(t)
+	w := NewMockWal(t)
 
-	database, err := NewDatabase(compute, engine, wal, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	database, err := NewDatabase(compute, engine, w, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
 
-	wal.EXPECT().Recover().Return([]parser.Command{
-		{Type: parser.SET, Args: []string{"name", "Daniil"}},
-		{Type: parser.DEL, Args: []string{"name"}},
-		{Type: parser.GET, Args: []string{"name"}},
+	w.EXPECT().Recover().Return([]wal.Command{
+		{CommandType: 1, Args: []string{"name", "Daniil"}},
+		{CommandType: 2, Args: []string{"name"}},
+		{CommandType: 0, Args: []string{"name"}},
 	}, nil).Once()
 	engine.EXPECT().Set("name", "Daniil").Return().Once()
 	engine.EXPECT().Del("name").Return().Once()
@@ -176,7 +177,7 @@ func TestRecover_NilWal(t *testing.T) {
 	compute := NewMockCompute(t)
 	engine := NewMockEngine(t)
 
-	database, err := NewDatabase(compute, engine, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	database, err := NewDatabase(compute, engine, nil, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
 
 	err = database.Recover()

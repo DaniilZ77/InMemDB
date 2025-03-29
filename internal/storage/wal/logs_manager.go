@@ -2,14 +2,16 @@ package wal
 
 import (
 	"bytes"
-	"io"
+	"encoding/gob"
 	"log/slog"
+
+	"github.com/DaniilZ77/InMemDB/internal/common"
 )
 
 //go:generate mockery --name=Disk --case=snake --inpackage --inpackage-suffix --with-expecter
 type Disk interface {
-	Write([]byte) error
-	Read() ([]byte, error)
+	WriteSegment([]byte) error
+	ReadSegments() ([]byte, error)
 }
 
 type LogsManager struct {
@@ -24,17 +26,14 @@ func NewLogsManager(disk Disk, log *slog.Logger) *LogsManager {
 	}
 }
 
-func (w *LogsManager) Write(commands []Command) error {
-	var data []byte
-	for _, command := range commands {
-		encodedCommand, err := command.Encode()
-		if err != nil {
-			return err
-		}
-		data = append(data, encodedCommand...)
+func (w *LogsManager) WriteLogs(commands []Command) error {
+	buffer := new(bytes.Buffer)
+	encoder := gob.NewEncoder(buffer)
+	if err := encoder.Encode(commands); err != nil {
+		return err
 	}
 
-	if err := w.disk.Write(data); err != nil {
+	if err := w.disk.WriteSegment(buffer.Bytes()); err != nil {
 		w.log.Error("failed to write data on disk", slog.Any("error", err))
 		return err
 	}
@@ -42,25 +41,11 @@ func (w *LogsManager) Write(commands []Command) error {
 	return nil
 }
 
-func (w *LogsManager) Read() ([]Command, error) {
-	data, err := w.disk.Read()
+func (w *LogsManager) ReadLogs() ([]Command, error) {
+	segments, err := w.disk.ReadSegments()
 	if err != nil {
 		return nil, err
 	}
 
-	var commands []Command
-	buf := bytes.NewBuffer(data)
-	for {
-		var command Command
-		err = command.Decode(buf)
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			return nil, err
-		}
-		commands = append(commands, command)
-	}
-
-	return commands, nil
+	return common.DecodeMany[[]Command](segments)
 }

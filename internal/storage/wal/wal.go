@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"slices"
 	"sync"
 	"time"
 
@@ -18,12 +17,12 @@ const (
 
 //go:generate mockery --name=LogsReader --case=snake --inpackage --inpackage-suffix --with-expecter
 type LogsReader interface {
-	Read() ([]Command, error)
+	ReadLogs() ([]Command, error)
 }
 
 //go:generate mockery --name=LogsWriter --case=snake --inpackage --inpackage-suffix --with-expecter
 type LogsWriter interface {
-	Write([]Command) error
+	WriteLogs([]Command) error
 }
 
 type Wal struct {
@@ -54,6 +53,9 @@ func NewWal(
 	if log == nil {
 		return nil, errors.New("logger is nil")
 	}
+
+	log.Info("flushing batch timeout", slog.Duration("timeout", batchTimeout))
+	log.Info("flushing batch size", slog.Int("size", batchSize))
 
 	return &Wal{
 		logsReader:   logsReader,
@@ -110,10 +112,10 @@ func (w *Wal) Start(ctx context.Context) {
 			batch := *w.batch
 			w.batch.ResetBatch()
 			w.mu.Unlock()
-			go w.flushBatch(batch)
+			w.flushBatch(batch)
 		case batch := <-w.batchChannel:
 			ticker.Reset(w.batchTimeout)
-			go w.flushBatch(batch)
+			w.flushBatch(batch)
 		}
 	}
 }
@@ -122,12 +124,12 @@ func (w *Wal) flushAll() {
 	for {
 		select {
 		case batch := <-w.batchChannel:
-			go w.flushBatch(batch)
+			w.flushBatch(batch)
 		default:
 			w.mu.Lock()
 			batch := *w.batch
 			w.mu.Unlock()
-			go w.flushBatch(batch)
+			w.flushBatch(batch)
 			return
 		}
 	}
@@ -138,7 +140,7 @@ func (w *Wal) flushBatch(batch Batch) {
 		return
 	}
 
-	err := w.logsWriter.Write(batch.commands)
+	err := w.logsWriter.WriteLogs(batch.commands)
 	if err != nil {
 		w.log.Error("failed to flush batch", slog.Any("error", err))
 		batch.NotifyFlushed(statusError)
@@ -148,29 +150,16 @@ func (w *Wal) flushBatch(batch Batch) {
 	batch.NotifyFlushed(statusSuccess)
 }
 
-func (w *Wal) Recover() ([]parser.Command, error) {
-	commands, err := w.logsReader.Read()
+func (w *Wal) Recover() ([]Command, error) {
+	commands, err := w.logsReader.ReadLogs()
 	if err != nil {
 		return nil, err
 	}
 
 	w.log.Info("recovered database", slog.Any("commands", len(commands)))
-
-	slices.SortFunc(commands, func(command1, command2 Command) int {
-		return command1.LSN - command2.LSN
-	})
-
 	if len(commands) > 0 {
 		w.batch.lsn = commands[len(commands)-1].LSN + 1
 	}
 
-	parserCommands := make([]parser.Command, len(commands))
-	for i := range commands {
-		parserCommands[i] = parser.Command{
-			Type: parser.CommandType(commands[i].CommandType),
-			Args: commands[i].Args,
-		}
-	}
-
-	return parserCommands, nil
+	return commands, nil
 }
