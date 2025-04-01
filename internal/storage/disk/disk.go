@@ -55,14 +55,14 @@ func (d *Disk) NextSegment(filename string) (string, error) {
 	}
 
 	if len(entries) == 0 {
-		return "", nil
+		return "", ErrSegmentNotFound
 	}
 
 	index, _ := slices.BinarySearchFunc(entries, filename, func(dir os.DirEntry, filename string) int {
 		return strings.Compare(dir.Name(), filename)
 	})
 
-	if filename == "" || index == len(entries)-1 {
+	if index >= len(entries)-1 {
 		return entries[index].Name(), nil
 	}
 
@@ -76,7 +76,7 @@ func (d *Disk) LastSegment() (string, error) {
 	}
 
 	if len(entries) == 0 {
-		return "", nil
+		return "", ErrSegmentNotFound
 	}
 
 	return entries[len(entries)-1].Name(), nil

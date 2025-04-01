@@ -5,14 +5,18 @@ import (
 	"io"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
 	"github.com/DaniilZ77/InMemDB/internal/storage/wal"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 func TestExecute_Success(t *testing.T) {
+	t.Parallel()
+
 	compute := NewMockCompute(t)
 	engine := NewMockEngine(t)
 	wal := NewMockWal(t)
@@ -82,8 +86,6 @@ func TestExecute_Success(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			tt.mock()
 
 			res := database.Execute(tt.command)
@@ -182,4 +184,57 @@ func TestRecover_NilWal(t *testing.T) {
 
 	err = database.Recover()
 	assert.Nil(t, err)
+}
+
+func TestSlaveReplica_ForbiddenCommands(t *testing.T) {
+	t.Parallel()
+
+	compute := NewMockCompute(t)
+	engine := NewMockEngine(t)
+	replica := NewMockReplication(t)
+
+	replica.EXPECT().IsSlave().Return(true)
+	replica.EXPECT().GetReplicationStream().Return(nil).Once()
+
+	database, err := NewDatabase(compute, engine, nil, replica, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	require.NoError(t, err)
+
+	compute.EXPECT().Parse(mock.Anything).Return(&parser.Command{Type: parser.SET}, nil).Once()
+	res := database.Execute("set a b")
+	assert.Equal(t, errReplicaNotSupport, res)
+
+	compute.EXPECT().Parse(mock.Anything).Return(&parser.Command{Type: parser.DEL}, nil).Once()
+	res = database.Execute("del a")
+	assert.Equal(t, errReplicaNotSupport, res)
+
+	time.Sleep(100 * time.Millisecond)
+}
+
+func TestReplicationStream(t *testing.T) {
+	t.Parallel()
+
+	compute := NewMockCompute(t)
+	engine := NewMockEngine(t)
+	replica := NewMockReplication(t)
+
+	engine.EXPECT().Set(mock.Anything, mock.Anything).Return().Once()
+	engine.EXPECT().Del(mock.Anything).Return().Once()
+
+	replicationStream := make(chan []wal.Command)
+	replica.EXPECT().IsSlave().Return(true).Once()
+	replica.EXPECT().GetReplicationStream().Return(replicationStream).Once()
+
+	_, err := NewDatabase(compute, engine, nil, replica, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	require.NoError(t, err)
+
+	commands := []wal.Command{
+		{CommandType: setCommand, Args: []string{"name", "Daniil"}},
+		{CommandType: delCommand, Args: []string{"name"}},
+	}
+
+	go func() {
+		replicationStream <- commands
+	}()
+
+	time.Sleep(100 * time.Millisecond)
 }

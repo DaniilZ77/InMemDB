@@ -9,12 +9,10 @@ import (
 func main() {
 	var address string
 	flag.StringVar(&address, "address", "127.0.0.1:3223", "server address")
-	var bufferSize int
-	flag.IntVar(&bufferSize, "buffer_size", 1024, "buffer size")
 
 	flag.Parse()
 
-	client, err := client.NewClient(address, bufferSize)
+	client, err := client.NewClient(address)
 	if err != nil {
 		panic("failed to init client: " + err.Error())
 	}

@@ -5,23 +5,33 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 )
 
+const defaultBufferSize = 1024
+
 type Client struct {
-	connection net.Conn
-	bufferSize int
+	connection  net.Conn
+	readTimeout time.Duration
+	bufferSize  int
 }
 
-func NewClient(address string, bufferSize int) (*Client, error) {
+func NewClient(address string, opts ...ClientOption) (*Client, error) {
 	connection, err := net.Dial("tcp", address)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Client{
-		connection: connection,
-		bufferSize: bufferSize,
-	}, nil
+	client := &Client{connection: connection}
+	for _, opt := range opts {
+		opt(client)
+	}
+
+	if client.bufferSize == 0 {
+		client.bufferSize = defaultBufferSize
+	}
+
+	return client, nil
 }
 
 func (c *Client) Send(request []byte) ([]byte, error) {
@@ -31,6 +41,11 @@ func (c *Client) Send(request []byte) ([]byte, error) {
 	}
 
 	response := make([]byte, c.bufferSize)
+	if c.readTimeout != 0 {
+		if err := c.connection.SetReadDeadline(time.Now().Add(c.readTimeout)); err != nil {
+			return nil, err
+		}
+	}
 	n, err := c.connection.Read(response)
 	if err != nil {
 		return nil, err

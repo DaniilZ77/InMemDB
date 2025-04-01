@@ -9,6 +9,7 @@ import (
 	"github.com/DaniilZ77/InMemDB/internal/storage/disk"
 	"github.com/DaniilZ77/InMemDB/internal/storage/replication"
 	"github.com/DaniilZ77/InMemDB/internal/storage/wal"
+	"github.com/DaniilZ77/InMemDB/internal/tcp/client"
 )
 
 const (
@@ -81,11 +82,17 @@ func NewWalReplica(ctx context.Context, config *config.Config, log *slog.Logger)
 		return wal, nil, nil
 	}
 
+	var replica any
 	switch replicaType {
 	case master:
-		return wal, replication.NewMaster(disk, dataDirectory, log), nil
+		replica, err = replication.NewMaster(disk, dataDirectory, log)
+		return wal, replica, err
 	case slave:
-		replica, err := replication.NewSlave(masterAddress, syncInterval, defaultMaxSegmentSize, dataDirectory, disk, log)
+		client, err := client.NewClient(masterAddress, client.WithBufferSize(defaultMaxSegmentSize))
+		if err != nil {
+			return nil, nil, err
+		}
+		replica, err := replication.NewSlave(syncInterval, client, disk, log)
 		return wal, replica, err
 	}
 

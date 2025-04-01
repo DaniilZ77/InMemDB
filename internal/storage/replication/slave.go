@@ -2,50 +2,60 @@ package replication
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 
 	"github.com/DaniilZ77/InMemDB/internal/common"
 	"github.com/DaniilZ77/InMemDB/internal/storage/wal"
-	"github.com/DaniilZ77/InMemDB/internal/tcp/client"
 )
 
+//go:generate mockery --name=Disk --case=snake --inpackage --inpackage-suffix --with-expecter
 type Disk interface {
 	LastSegment() (string, error)
 	WriteFile(filename string, data []byte) error
 }
 
+//go:generate mockery --name=Client --case=snake --inpackage --inpackage-suffix --with-expecter
+type Client interface {
+	Send(request []byte) ([]byte, error)
+	Close() error
+}
+
 type Slave struct {
-	masterAddress     string
 	syncInterval      time.Duration
-	bufferSize        int
-	walDirectory      string
 	lastSegment       string
 	replicationStream chan []wal.Command
-	client            *client.Client
+	client            Client
 	disk              Disk
 	log               *slog.Logger
 }
 
 func NewSlave(
-	masterAddress string,
 	syncInterval time.Duration,
-	bufferSize int,
-	walDirectory string,
+	client Client,
 	disk Disk,
 	log *slog.Logger) (*Slave, error) {
+	if disk == nil {
+		return nil, errors.New("disk is nil")
+	}
+	if log == nil {
+		return nil, errors.New("log is nil")
+	}
+	if client == nil {
+		return nil, errors.New("client is nil")
+	}
+
 	lastSegment, err := disk.LastSegment()
 	if err != nil {
 		return nil, err
 	}
 
 	return &Slave{
-		masterAddress:     masterAddress,
 		syncInterval:      syncInterval,
-		bufferSize:        bufferSize,
-		walDirectory:      walDirectory,
 		lastSegment:       lastSegment,
 		replicationStream: make(chan []wal.Command),
+		client:            client,
 		disk:              disk,
 		log:               log,
 	}, nil
@@ -58,16 +68,11 @@ func (s *Slave) GetReplicationStream() <-chan []wal.Command {
 func (s *Slave) Start(ctx context.Context) (err error) {
 	ticker := time.NewTicker(s.syncInterval)
 
-	s.client, err = client.NewClient(s.masterAddress, s.bufferSize)
-	if err != nil {
-		return err
-	}
-
 	defer func() {
 		ticker.Stop()
 		close(s.replicationStream)
 		if err := s.client.Close(); err != nil {
-			s.log.Error("failed to close client", slog.Any("error", err))
+			s.log.Warn("failed to close client", slog.Any("error", err))
 		}
 		if v := recover(); v != nil {
 			s.log.Error("panic recovered", slog.Any("error", v))
@@ -107,6 +112,7 @@ func (s *Slave) receiveSegment() (*Response, error) {
 
 	response, err := s.client.Send(encodedRequest)
 	if err != nil {
+		s.log.Error("failed to receive segment from master", slog.Any("error", err))
 		return nil, err
 	}
 
@@ -115,7 +121,6 @@ func (s *Slave) receiveSegment() (*Response, error) {
 		return nil, err
 	}
 
-	s.lastSegment = decodedResponse.Filename
 	return &decodedResponse, nil
 }
 
@@ -124,6 +129,11 @@ func (s *Slave) handle(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	s.log.Debug("received response from master",
+		slog.Bool("ok", response.Ok),
+		slog.String("filename", response.Filename),
+	)
 
 	if !response.Ok {
 		s.log.Warn("error response from master")
@@ -140,10 +150,11 @@ func (s *Slave) handle(ctx context.Context) error {
 		return err
 	}
 
+	s.lastSegment = response.Filename
+
 	select {
 	case s.replicationStream <- decodedData:
 	case <-ctx.Done():
-		s.log.Info("stopping slave")
 	}
 	return nil
 }
