@@ -16,23 +16,23 @@ type NextSegmentProvider interface {
 }
 
 type Master struct {
-	disk         NextSegmentProvider
-	walDirectory string
-	log          *slog.Logger
+	segmentProvider NextSegmentProvider
+	walDirectory    string
+	log             *slog.Logger
 }
 
-func NewMaster(disk NextSegmentProvider, walDirectory string, log *slog.Logger) (*Master, error) {
-	if disk == nil {
-		return nil, errors.New("disk is nil")
+func NewMaster(segmentProvider NextSegmentProvider, walDirectory string, log *slog.Logger) (*Master, error) {
+	if segmentProvider == nil {
+		return nil, errors.New("segment provider is nil")
 	}
 	if log == nil {
 		return nil, errors.New("log is nil")
 	}
 
 	return &Master{
-		disk:         disk,
-		walDirectory: walDirectory,
-		log:          log,
+		segmentProvider: segmentProvider,
+		walDirectory:    walDirectory,
+		log:             log,
 	}, nil
 }
 
@@ -61,7 +61,7 @@ func (m *Master) HandleRequest(request []byte) (response []byte, err error) {
 	m.log.Debug("received request from slave", slog.String("last_segment", decodedRequest.LastSegment))
 
 	var filename string
-	filename, err = m.disk.NextSegment(decodedRequest.LastSegment)
+	filename, err = m.segmentProvider.NextSegment(decodedRequest.LastSegment)
 	if err != nil {
 		return
 	}

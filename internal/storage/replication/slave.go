@@ -7,11 +7,12 @@ import (
 	"time"
 
 	"github.com/DaniilZ77/InMemDB/internal/common"
+	"github.com/DaniilZ77/InMemDB/internal/storage/disk"
 	"github.com/DaniilZ77/InMemDB/internal/storage/wal"
 )
 
 //go:generate mockery --name=Disk --case=snake --inpackage --inpackage-suffix --with-expecter
-type Disk interface {
+type SegmentManager interface {
 	LastSegment() (string, error)
 	WriteFile(filename string, data []byte) error
 }
@@ -27,17 +28,17 @@ type Slave struct {
 	lastSegment       string
 	replicationStream chan []wal.Command
 	client            Client
-	disk              Disk
+	segmentManager    SegmentManager
 	log               *slog.Logger
 }
 
 func NewSlave(
 	syncInterval time.Duration,
 	client Client,
-	disk Disk,
+	segmentManager SegmentManager,
 	log *slog.Logger) (*Slave, error) {
-	if disk == nil {
-		return nil, errors.New("disk is nil")
+	if segmentManager == nil {
+		return nil, errors.New("segment manager is nil")
 	}
 	if log == nil {
 		return nil, errors.New("log is nil")
@@ -46,8 +47,8 @@ func NewSlave(
 		return nil, errors.New("client is nil")
 	}
 
-	lastSegment, err := disk.LastSegment()
-	if err != nil {
+	lastSegment, err := segmentManager.LastSegment()
+	if err != nil && !errors.Is(err, disk.ErrSegmentNotFound) {
 		return nil, err
 	}
 
@@ -56,7 +57,7 @@ func NewSlave(
 		lastSegment:       lastSegment,
 		replicationStream: make(chan []wal.Command),
 		client:            client,
-		disk:              disk,
+		segmentManager:    segmentManager,
 		log:               log,
 	}, nil
 }
@@ -136,11 +137,10 @@ func (s *Slave) handle(ctx context.Context) error {
 	)
 
 	if !response.Ok {
-		s.log.Warn("error response from master")
 		return nil
 	}
 
-	err = s.disk.WriteFile(response.Filename, response.Segment)
+	err = s.segmentManager.WriteFile(response.Filename, response.Segment)
 	if err != nil {
 		return err
 	}
