@@ -1,9 +1,14 @@
 version: '3'
 
 tasks:
-  server:
+  server-master:
     env:
-      CONFIG_PATH: ./config/server.yaml
+      CONFIG_PATH: ./config/master.yaml
+    cmds:
+      - go run ./cmd/db
+  server-slave:
+    env:
+      CONFIG_PATH: ./config/slave.yaml
     cmds:
       - go run ./cmd/db
   client:
@@ -22,3 +27,16 @@ tasks:
   clean:
     cmds:
       - rm -rf ./bin
+  docker-build:
+    cmds:
+      - docker build -t db:latest .
+  docker-run-master:
+    vars:
+      CONFIG_PATH: ./config/master.yaml
+    cmds:
+      - docker run --rm -p 3211:3211 -v $(pwd)/config:/app/config -v $(pwd)/data:/app/data -e CONFIG_PATH={{.CONFIG_PATH}} db:latest
+  docker-run-slave:
+    vars:
+      CONFIG_PATH: ./config/slave.yaml
+    cmds:
+      - docker run --rm -p 3232:3232 -v $(pwd)/config:/app/config -v $(pwd)/data:/app/data -e CONFIG_PATH={{.CONFIG_PATH}} db:latest

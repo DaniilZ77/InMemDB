@@ -66,6 +66,11 @@ func (m *Master) HandleRequest(request []byte) (response []byte, err error) {
 		return
 	}
 
+	if filename == "" {
+		m.log.Debug("no new segments")
+		return common.Encode(NewSuccessResponse("", nil))
+	}
+
 	var segment []byte
 	segment, err = os.ReadFile(filepath.Join(m.walDirectory, filename))
 	if err != nil {

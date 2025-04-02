@@ -65,17 +65,21 @@ func TestNextSegment(t *testing.T) {
 
 	segments := createLogFiles(t, dir, 3, nil)
 
-	nextSegment, err := disk.NextSegment(segments[0])
+	nextSegment, err := disk.NextSegment("")
+	require.NoError(t, err)
+	assert.Equal(t, segments[0], nextSegment)
+
+	nextSegment, err = disk.NextSegment(segments[0])
 	require.NoError(t, err)
 	assert.Equal(t, segments[1], nextSegment)
 
 	nextSegment, err = disk.NextSegment(segments[1])
 	require.NoError(t, err)
-	assert.Equal(t, segments[2], nextSegment)
+	assert.Equal(t, "", nextSegment)
 
 	nextSegment, err = disk.NextSegment(segments[2])
 	require.NoError(t, err)
-	assert.Equal(t, segments[2], nextSegment)
+	assert.Equal(t, "", nextSegment)
 }
 
 func TestSegments_EmptyDir(t *testing.T) {
@@ -85,29 +89,27 @@ func TestSegments_EmptyDir(t *testing.T) {
 	tests := []struct {
 		name        string
 		expectedErr error
-		call        func() error
+		call        func() (string, error)
 	}{
 		{
-			name:        "next segment empty dir",
-			expectedErr: ErrSegmentNotFound,
-			call: func() error {
-				_, err := disk.NextSegment("")
-				return err
+			name: "next segment empty dir",
+			call: func() (string, error) {
+				return disk.NextSegment("")
 			},
 		},
 		{
-			name:        "last segment empty dir",
-			expectedErr: ErrSegmentNotFound,
-			call: func() error {
-				_, err := disk.LastSegment()
-				return err
+			name: "last segment empty dir",
+			call: func() (string, error) {
+				return disk.LastSegment()
 			},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.ErrorIs(t, tt.call(), tt.expectedErr)
+			res, err := tt.call()
+			assert.NoError(t, err)
+			assert.Empty(t, res)
 		})
 	}
 }

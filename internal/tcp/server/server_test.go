@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -11,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/DaniilZ77/InMemDB/internal/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -35,18 +35,18 @@ func TestServer(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	address := server.listener.Addr().String()
-	command := "set name Daniil"
+	command := []byte("set name Daniil")
 
 	t.Run("success", func(t *testing.T) {
 		conn, err := net.Dial("tcp", address)
 		require.NoError(t, err)
 		t.Cleanup(func() { conn.Close() }) // nolint
 
-		_, err = fmt.Fprintln(conn, command)
+		_, err = common.Write(conn, command)
 		require.NoError(t, err)
 
 		buffer := make([]byte, 1024)
-		n, err := conn.Read(buffer)
+		n, err := common.Read(conn, buffer)
 		require.NoError(t, err)
 
 		assert.Equal(t, "OK", string(buffer[:n]))
@@ -63,7 +63,7 @@ func TestServer(t *testing.T) {
 		require.NoError(t, err)
 		t.Cleanup(func() { conn.Close() }) // nolint
 
-		_, err = fmt.Fprintln(conn, command)
+		_, err = common.Write(conn, command)
 		require.NoError(t, err)
 
 		err = conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))

@@ -22,6 +22,7 @@ const (
 	defaultReplicaType          = master
 	defaultMasterAddress        = ":3232"
 	defaultSyncInterval         = time.Second
+	defaultIdleTimeout          = time.Second
 )
 
 var replicaTypes = map[string]bool{
@@ -88,7 +89,11 @@ func NewWalReplica(ctx context.Context, config *config.Config, log *slog.Logger)
 		replica, err = replication.NewMaster(disk, dataDirectory, log)
 		return wal, replica, err
 	case slave:
-		client, err := client.NewClient(masterAddress, client.WithBufferSize(defaultMaxSegmentSize))
+		client, err := client.NewClient(
+			masterAddress,
+			client.WithBufferSize(2*maxSegmentSize),
+			client.WithIdleTimeout(defaultIdleTimeout),
+		)
 		if err != nil {
 			return nil, nil, err
 		}

@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/DaniilZ77/InMemDB/internal/common"
 	"github.com/DaniilZ77/InMemDB/internal/concurrency"
 )
 
@@ -94,11 +95,11 @@ func (s *Server) Shutdown(ctx context.Context) {
 	}
 }
 
-func (s *Server) handler(ctx context.Context, conn net.Conn) {
-	s.log.Debug("new connection", slog.String("remote", conn.RemoteAddr().String()))
+func (s *Server) handler(ctx context.Context, connection net.Conn) {
+	s.log.Debug("new connection", slog.String("remote", connection.RemoteAddr().String()))
 
 	defer func() {
-		if err := conn.Close(); err != nil {
+		if err := connection.Close(); err != nil {
 			s.log.Error("failed to close connection", slog.Any("error", err))
 		}
 		s.wg.Done()
@@ -113,33 +114,36 @@ func (s *Server) handler(ctx context.Context, conn net.Conn) {
 		}
 
 		if s.idleTimeout != 0 {
-			err = conn.SetReadDeadline(time.Now().Add(s.idleTimeout))
-			if err != nil {
+			if err = connection.SetReadDeadline(time.Now().Add(s.idleTimeout)); err != nil {
 				s.log.Error("set read deadline failure", slog.Any("error", err))
-				break
+				return
 			}
 		}
-
-		n, err = conn.Read(buffer)
+		n, err = common.Read(connection, buffer)
 		if err != nil {
 			var ne net.Error
 			if errors.As(err, &ne) && ne.Timeout() {
 				s.log.Warn("idle connection", slog.Any("error", err))
-				break
+				return
 			}
 			s.log.Error("read failure", slog.Any("error", err))
-			break
+			return
 		}
 
 		response, err := s.logic(buffer[:n])
 		if err != nil {
 			s.log.Error("failed to execute logic", slog.Any("error", err))
-			break
+			return
 		}
-
-		if _, err = conn.Write(response); err != nil {
+		if s.idleTimeout != 0 {
+			if err = connection.SetWriteDeadline(time.Now().Add(s.idleTimeout)); err != nil {
+				s.log.Error("set write deadline failure", slog.Any("error", err))
+				return
+			}
+		}
+		if _, err = common.Write(connection, response); err != nil {
 			s.log.Error("write failure", slog.Any("error", err))
-			break
+			return
 		}
 	}
 }

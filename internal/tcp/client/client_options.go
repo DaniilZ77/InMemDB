@@ -4,9 +4,9 @@ import "time"
 
 type ClientOption func(*Client)
 
-func WithReadTimeout(timeout time.Duration) ClientOption {
+func WithIdleTimeout(idleTimeout time.Duration) ClientOption {
 	return func(c *Client) {
-		c.readTimeout = timeout
+		c.idleTimeout = idleTimeout
 	}
 }
 

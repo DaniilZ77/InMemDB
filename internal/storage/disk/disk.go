@@ -2,14 +2,11 @@ package disk
 
 import (
 	"errors"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
-	"slices"
-	"strings"
 )
-
-var ErrSegmentNotFound = errors.New("segment not found")
 
 type Disk struct {
 	directory string
@@ -18,6 +15,11 @@ type Disk struct {
 }
 
 func NewDisk(dataDirectory string, maxSegmentSize int, log *slog.Logger) *Disk {
+	if err := os.MkdirAll(dataDirectory, 0777); err != nil && !errors.Is(err, fs.ErrExist) {
+		log.Error("failed to create directory", slog.String("directory", dataDirectory), slog.Any("error", err))
+		return nil
+	}
+
 	return &Disk{
 		directory: dataDirectory,
 		segment:   NewSegment(maxSegmentSize, dataDirectory, log),
@@ -54,19 +56,24 @@ func (d *Disk) NextSegment(filename string) (string, error) {
 		return "", err
 	}
 
-	if len(entries) == 0 {
-		return "", ErrSegmentNotFound
+	return upperBound(entries, filename), nil
+}
+
+func upperBound(entries []os.DirEntry, filename string) string {
+	l, r := 0, len(entries)-1
+	for l <= r {
+		m := (l + r) / 2
+		if entries[m].Name() <= filename {
+			l = m + 1
+		} else {
+			r = m - 1
+		}
 	}
 
-	index, _ := slices.BinarySearchFunc(entries, filename, func(dir os.DirEntry, filename string) int {
-		return strings.Compare(dir.Name(), filename)
-	})
-
-	if index >= len(entries)-1 {
-		return entries[index].Name(), nil
+	if l >= len(entries)-1 {
+		return ""
 	}
-
-	return entries[index+1].Name(), nil
+	return entries[l].Name()
 }
 
 func (d *Disk) LastSegment() (string, error) {
@@ -76,7 +83,7 @@ func (d *Disk) LastSegment() (string, error) {
 	}
 
 	if len(entries) == 0 {
-		return "", ErrSegmentNotFound
+		return "", nil
 	}
 
 	return entries[len(entries)-1].Name(), nil

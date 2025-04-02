@@ -3,16 +3,19 @@ package client
 import (
 	"bufio"
 	"fmt"
+	"io"
 	"net"
 	"os"
 	"time"
+
+	"github.com/DaniilZ77/InMemDB/internal/common"
 )
 
 const defaultBufferSize = 1024
 
 type Client struct {
 	connection  net.Conn
-	readTimeout time.Duration
+	idleTimeout time.Duration
 	bufferSize  int
 }
 
@@ -35,19 +38,24 @@ func NewClient(address string, opts ...ClientOption) (*Client, error) {
 }
 
 func (c *Client) Send(request []byte) ([]byte, error) {
-	_, err := c.connection.Write(request)
+	if c.idleTimeout != 0 {
+		if err := c.connection.SetWriteDeadline(time.Now().Add(c.idleTimeout)); err != nil {
+			return nil, err
+		}
+	}
+	_, err := common.Write(c.connection, request)
 	if err != nil {
 		return nil, err
 	}
 
 	response := make([]byte, c.bufferSize)
-	if c.readTimeout != 0 {
-		if err := c.connection.SetReadDeadline(time.Now().Add(c.readTimeout)); err != nil {
+	if c.idleTimeout != 0 {
+		if err := c.connection.SetReadDeadline(time.Now().Add(c.idleTimeout)); err != nil {
 			return nil, err
 		}
 	}
-	n, err := c.connection.Read(response)
-	if err != nil {
+	n, err := common.Read(c.connection, response)
+	if err != nil && err != io.EOF {
 		return nil, err
 	}
 
@@ -62,16 +70,15 @@ func (c *Client) Run() error {
 	defer c.Close() // nolint
 
 	stdinReader := bufio.NewReader(os.Stdin)
-	request := make([]byte, c.bufferSize)
 	for {
 		fmt.Print("# ")
 
-		n, err := stdinReader.Read(request)
+		request, err := stdinReader.ReadBytes('\n')
 		if err != nil {
 			return err
 		}
 
-		response, err := c.Send(request[:n])
+		response, err := c.Send(request)
 		if err != nil {
 			return err
 		}

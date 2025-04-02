@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/DaniilZ77/InMemDB/internal/common"
-	"github.com/DaniilZ77/InMemDB/internal/storage/disk"
 	"github.com/DaniilZ77/InMemDB/internal/storage/wal"
 )
 
@@ -48,7 +47,7 @@ func NewSlave(
 	}
 
 	lastSegment, err := segmentManager.LastSegment()
-	if err != nil && !errors.Is(err, disk.ErrSegmentNotFound) {
+	if err != nil {
 		return nil, err
 	}
 
@@ -94,7 +93,7 @@ func (s *Slave) Start(ctx context.Context) (err error) {
 			return nil
 		case <-ticker.C:
 			if err := s.handle(ctx); err != nil {
-				return err
+				s.log.Error("failed to handle replication", slog.Any("error", err))
 			}
 		}
 	}
@@ -113,7 +112,7 @@ func (s *Slave) receiveSegment() (*Response, error) {
 
 	response, err := s.client.Send(encodedRequest)
 	if err != nil {
-		s.log.Error("failed to receive segment from master", slog.Any("error", err))
+		s.log.Warn("failed to receive segment from master", slog.Any("error", err))
 		return nil, err
 	}
 
@@ -137,6 +136,11 @@ func (s *Slave) handle(ctx context.Context) error {
 	)
 
 	if !response.Ok {
+		return nil
+	}
+
+	if response.Filename == "" {
+		s.log.Debug("no new segments")
 		return nil
 	}
 
