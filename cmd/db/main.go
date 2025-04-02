@@ -8,6 +8,7 @@ import (
 
 	"github.com/DaniilZ77/InMemDB/internal/app"
 	"github.com/DaniilZ77/InMemDB/internal/config"
+	_ "go.uber.org/automaxprocs"
 )
 
 func main() {

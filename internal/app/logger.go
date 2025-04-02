@@ -27,7 +27,7 @@ func NewLogger(config *config.Config) (*slog.Logger, error) {
 		opts.Level = slog.LevelError
 		log = slog.New(slog.NewJSONHandler(os.Stdout, opts))
 	default:
-		return nil, errors.New("inavalid log level")
+		return nil, errors.New("invalid log level")
 	}
 
 	return log, nil
