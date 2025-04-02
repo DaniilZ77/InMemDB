@@ -89,8 +89,9 @@ func NewWalReplica(ctx context.Context, config *config.Config, log *slog.Logger)
 		replica, err = replication.NewMaster(disk, dataDirectory, log)
 		return wal, replica, err
 	case slave:
-		client, err := client.NewClient(
+		client, err := NewClient(
 			masterAddress,
+			log,
 			client.WithBufferSize(2*maxSegmentSize),
 			client.WithIdleTimeout(defaultIdleTimeout),
 		)

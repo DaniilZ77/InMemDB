@@ -19,7 +19,7 @@ tasks:
       - golangci-lint run
   test:
     cmds:
-      - go test -race -count=1 -timeout 30s ./...
+      - go test -short -race -count=1 -timeout 30s ./...
   build:
     cmds:
       - go build -o ./bin/db ./cmd/db
@@ -30,13 +30,36 @@ tasks:
   docker-build:
     cmds:
       - docker build -t db:latest .
-  docker-run-master:
-    vars:
-      CONFIG_PATH: ./config/master.yaml
+  docker-run-container:
+    internal: true
     cmds:
-      - docker run --rm -p 3211:3211 -v $(pwd)/config:/app/config -v $(pwd)/data:/app/data -e CONFIG_PATH={{.CONFIG_PATH}} db:latest
-  docker-run-slave:
-    vars:
-      CONFIG_PATH: ./config/slave.yaml
-    cmds:
-      - docker run --rm -p 3232:3232 -v $(pwd)/config:/app/config -v $(pwd)/data:/app/data -e CONFIG_PATH={{.CONFIG_PATH}} db:latest
+      - docker network create db-network || true
+      - docker run --rm --name {{.TYPE}} -p {{.PORT}}:{{.PORT}} -v {{.CONFIG_DIR}}:/app/config -v {{.DATA_DIR}}:/app/data -e CONFIG_PATH=./config/{{.TYPE}}.yaml --network db-network db:latest
+  docker-run:
+    deps:
+      - task: docker-run-container
+        vars:
+          TYPE: master
+          PORT: 3223
+          CONFIG_DIR: ./config
+          DATA_DIR: ./data
+      - task: docker-run-container
+        vars:
+          TYPE: slave
+          PORT: 3224
+          CONFIG_DIR: ./config
+          DATA_DIR: ./data
+  docker-test-run:
+    deps:
+      - task: docker-run-container
+        vars:
+          TYPE: master
+          PORT: 3223
+          CONFIG_DIR: ./config/testconfig
+          DATA_DIR: ./tests/testdata
+      - task: docker-run-container
+        vars:
+          TYPE: slave
+          PORT: 3224
+          CONFIG_DIR: ./config/testconfig
+          DATA_DIR: ./tests/testdata
