@@ -31,7 +31,7 @@ func TestMasterApi(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		err := os.RemoveAll("./tests/testdata/data")
+		err := os.RemoveAll("./tests/testdata")
 		require.NoError(t, err)
 	})
 
@@ -64,7 +64,7 @@ func TestSlaveApi(t *testing.T) {
 	}
 
 	t.Cleanup(func() {
-		err := os.RemoveAll("./tests/testdata/data")
+		err := os.RemoveAll("./tests/testdata")
 		require.NoError(t, err)
 	})
 

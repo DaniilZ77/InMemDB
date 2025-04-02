@@ -17,7 +17,7 @@ import (
 func TestStart(t *testing.T) {
 	t.Parallel()
 
-	disk, client := NewMockDisk(t), NewMockClient(t)
+	disk, client := NewMockSegmentManager(t), NewMockClient(t)
 
 	disk.EXPECT().LastSegment().Return("segment.log", nil).Once()
 	client.EXPECT().Close().Return(nil).Once()

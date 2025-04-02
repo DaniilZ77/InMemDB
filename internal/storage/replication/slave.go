@@ -10,7 +10,7 @@ import (
 	"github.com/DaniilZ77/InMemDB/internal/storage/wal"
 )
 
-//go:generate mockery --name=Disk --case=snake --inpackage --inpackage-suffix --with-expecter
+//go:generate mockery --name=SegmentManager --case=snake --inpackage --inpackage-suffix --with-expecter
 type SegmentManager interface {
 	LastSegment() (string, error)
 	WriteFile(filename string, data []byte) error
