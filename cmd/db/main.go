@@ -11,8 +11,8 @@ import (
 )
 
 func main() {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer stop()
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
 
 	config := config.MustConfig()
 	if err := app.RunApp(ctx, config); err != nil {
