@@ -1,7 +1,6 @@
 package app
 
 import (
-	"context"
 	"log/slog"
 	"time"
 
@@ -30,7 +29,7 @@ var replicaTypes = map[string]bool{
 	master: true,
 }
 
-func NewWalReplica(ctx context.Context, config *config.Config, log *slog.Logger) (*wal.Wal, any, error) {
+func NewWalReplica(config *config.Config, log *slog.Logger) (*wal.Wal, any, error) {
 	if config.Wal == nil {
 		return nil, nil, nil
 	}
@@ -74,9 +73,6 @@ func NewWalReplica(ctx context.Context, config *config.Config, log *slog.Logger)
 	wal, err := wal.NewWal(flushingBatchSize, flushingBatchTimeout, logsManager, logsManager, log)
 	if err != nil {
 		return nil, nil, err
-	}
-	if replicaType != slave {
-		go wal.Start(ctx)
 	}
 
 	if config.Replication == nil {

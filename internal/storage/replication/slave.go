@@ -65,7 +65,7 @@ func (s *Slave) GetReplicationStream() <-chan []wal.Command {
 	return s.replicationStream
 }
 
-func (s *Slave) Start(ctx context.Context) (err error) {
+func (s *Slave) Start(ctx context.Context) {
 	ticker := time.NewTicker(s.syncInterval)
 
 	defer func() {
@@ -83,14 +83,14 @@ func (s *Slave) Start(ctx context.Context) (err error) {
 		select {
 		case <-ctx.Done():
 			s.log.Info("stopping slave")
-			return nil
+			return
 		default:
 		}
 
 		select {
 		case <-ctx.Done():
 			s.log.Info("stopping slave")
-			return nil
+			return
 		case <-ticker.C:
 			if err := s.handle(ctx); err != nil {
 				s.log.Error("failed to handle replication", slog.Any("error", err))

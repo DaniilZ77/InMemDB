@@ -59,8 +59,7 @@ func TestStart(t *testing.T) {
 
 	go func() {
 		defer wg.Done()
-		err = slave.Start(ctx)
-		assert.NoError(t, err)
+		slave.Start(ctx)
 	}()
 
 	wg.Wait()

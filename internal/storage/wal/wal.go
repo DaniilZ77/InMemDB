@@ -96,7 +96,6 @@ func (w *Wal) Start(ctx context.Context) {
 			return
 		default:
 		}
-
 		select {
 		case <-ctx.Done():
 			w.log.Info("flushing and stopping wal")

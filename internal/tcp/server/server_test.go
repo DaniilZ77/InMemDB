@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"net"
 	"os"
-	"sync"
 	"testing"
 	"time"
 
@@ -82,28 +81,5 @@ func TestServer(t *testing.T) {
 
 		_, err = conn.Read(make([]byte, 10))
 		assert.ErrorIs(t, err, io.EOF)
-	})
-
-	t.Run("force shutdown after context cancel", func(t *testing.T) {
-		conn, err := net.Dial("tcp", address)
-		require.NoError(t, err)
-		t.Cleanup(func() { conn.Close() }) // nolint
-
-		time.Sleep(100 * time.Millisecond)
-
-		cancel()
-
-		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
-		t.Cleanup(shutdownCancel)
-
-		wg := sync.WaitGroup{}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			server.Shutdown(shutdownCtx)
-		}()
-		wg.Wait()
-
-		assert.Error(t, shutdownCtx.Err())
 	})
 }

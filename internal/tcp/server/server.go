@@ -5,7 +5,6 @@ import (
 	"errors"
 	"log/slog"
 	"net"
-	"sync"
 	"time"
 
 	"github.com/DaniilZ77/InMemDB/internal/common"
@@ -18,7 +17,6 @@ type Server struct {
 	idleTimeout time.Duration
 	logic       func([]byte) ([]byte, error)
 	semaphore   *concurrency.Semaphore
-	wg          sync.WaitGroup
 	log         *slog.Logger
 }
 
@@ -64,34 +62,37 @@ func NewServer(
 }
 
 func (s *Server) Run(ctx context.Context, logic func([]byte) ([]byte, error)) error {
+	done := make(chan struct{})
 	s.logic = logic
-	for {
-		connection, err := s.listener.Accept()
-		if err != nil {
-			return err
+
+	defer func() {
+		if err := s.listener.Close(); err != nil {
+			s.log.Error("failed to close listener", slog.Any("error", err))
 		}
+	}()
 
-		s.wg.Add(1)
-		go s.recoverer(s.clientsLimiter(s.handler))(ctx, connection)
-	}
-}
-
-func (s *Server) Shutdown(ctx context.Context) {
-	if err := s.listener.Close(); err != nil {
-		s.log.Error("failed to close listener", slog.Any("error", err))
-	}
-
-	doneConnections := make(chan struct{})
 	go func() {
-		s.wg.Wait()
-		close(doneConnections)
+		defer close(done)
+		for {
+			connection, err := s.listener.Accept()
+			if err != nil {
+				if !errors.Is(err, net.ErrClosed) {
+					s.log.Error("failed to accept connection", slog.Any("error", err))
+				}
+				return
+			}
+
+			go s.recoverer(s.clientsLimiter(s.handler))(ctx, connection)
+		}
 	}()
 
 	select {
 	case <-ctx.Done():
-		s.log.Info("force shutdown")
-	case <-doneConnections:
-		s.log.Info("all connections closed")
+		s.log.Info("stopping server")
+		return nil
+	case <-done:
+		s.log.Error("unexpected server error")
+		return errors.New("server stopped accepting connections")
 	}
 }
 
@@ -102,7 +103,6 @@ func (s *Server) handler(ctx context.Context, connection net.Conn) {
 		if err := connection.Close(); err != nil {
 			s.log.Error("failed to close connection", slog.Any("error", err))
 		}
-		s.wg.Done()
 	}()
 
 	var err error
