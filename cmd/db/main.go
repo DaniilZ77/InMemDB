@@ -4,7 +4,6 @@ import (
 	"context"
 	"os"
 	"os/signal"
-	"time"
 
 	"github.com/DaniilZ77/InMemDB/internal/app"
 	"github.com/DaniilZ77/InMemDB/internal/config"
@@ -16,14 +15,7 @@ func main() {
 	defer stop()
 
 	config := config.MustConfig()
-	app, err := app.NewApp(ctx, config)
-	if err != nil {
+	if err := app.RunApp(ctx, config); err != nil {
 		panic(err)
 	}
-
-	<-app.Ctx.Done()
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	app.Shutdown(ctx)
 }

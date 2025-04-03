@@ -3,7 +3,6 @@ package app
 import (
 	"context"
 	"fmt"
-	"log/slog"
 
 	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
 	"github.com/DaniilZ77/InMemDB/internal/storage/replication"
@@ -13,48 +12,49 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type App struct {
-	Ctx           context.Context
-	mainServer    *server.Server
-	replicaServer *server.Server
-}
-
-func NewApp(ctx context.Context, config *config.Config) (*App, error) {
+func RunApp(ctx context.Context, config *config.Config) error {
 	group, groupCtx := errgroup.WithContext(ctx)
 
 	log, err := NewLogger(config)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	parser, err := parser.NewParser(log)
 	if err != nil {
-		return nil, fmt.Errorf("failed to init parser: %w", err)
+		return fmt.Errorf("failed to init parser: %w", err)
 	}
 
 	engine, err := NewEngine(config)
 	if err != nil {
-		return nil, fmt.Errorf("failed to init engine: %w", err)
+		return fmt.Errorf("failed to init engine: %w", err)
 	}
 
-	wal, replica, err := NewWalReplica(groupCtx, config, log)
+	wal, replica, err := NewWalReplica(config, log)
 	if err != nil {
-		return nil, fmt.Errorf("failed to init wal and replica: %w", err)
+		return fmt.Errorf("failed to init wal and replica: %w", err)
+	}
+
+	if _, ok := replica.(*replication.Slave); !ok && wal != nil {
+		group.Go(func() error {
+			wal.Start(groupCtx)
+			return nil
+		})
 	}
 
 	database, err := NewDatabase(parser, engine, wal, replica, log)
 	if err != nil {
-		return nil, fmt.Errorf("failed to init database: %w", err)
+		return fmt.Errorf("failed to init database: %w", err)
 	}
 
 	err = database.Recover()
 	if err != nil {
-		return nil, fmt.Errorf("failed to recover database: %w", err)
+		return fmt.Errorf("failed to recover database: %w", err)
 	}
 
 	mainServer, err := NewServer(config, log)
 	if err != nil {
-		return nil, fmt.Errorf("failed to init main server: %w", err)
+		return fmt.Errorf("failed to init main server: %w", err)
 	}
 
 	group.Go(func() error {
@@ -69,7 +69,7 @@ func NewApp(ctx context.Context, config *config.Config) (*App, error) {
 	case *replication.Master:
 		replicaServer, err = NewReplicaServer(config, log)
 		if err != nil {
-			return nil, fmt.Errorf("failed to init replica server: %w", err)
+			return fmt.Errorf("failed to init replica server: %w", err)
 		}
 
 		group.Go(func() error {
@@ -80,22 +80,10 @@ func NewApp(ctx context.Context, config *config.Config) (*App, error) {
 		})
 	case *replication.Slave:
 		group.Go(func() error {
-			err = r.Start(groupCtx)
-			log.Info("slave replica stopped", slog.Any("error", err))
-			return err
+			r.Start(groupCtx)
+			return nil
 		})
 	}
 
-	return &App{
-		Ctx:           groupCtx,
-		mainServer:    mainServer,
-		replicaServer: replicaServer,
-	}, nil
-}
-
-func (a *App) Shutdown(ctx context.Context) {
-	a.mainServer.Shutdown(ctx)
-	if a.replicaServer != nil {
-		a.replicaServer.Shutdown(ctx)
-	}
+	return group.Wait()
 }
