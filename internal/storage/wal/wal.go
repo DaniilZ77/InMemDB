@@ -70,11 +70,9 @@ func (w *Wal) Save(command *parser.Command) bool {
 	batch := *w.batch
 	if w.batch.IsFull() {
 		w.batch.ResetBatch()
-		w.mu.Unlock()
 		w.batchChannel <- batch
-	} else {
-		w.mu.Unlock()
 	}
+	w.mu.Unlock()
 
 	return batch.WaitFlushed()
 }
