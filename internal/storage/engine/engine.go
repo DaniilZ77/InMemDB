@@ -1,50 +1,43 @@
 package engine
 
-import "errors"
+import (
+	"errors"
+	"hash/fnv"
+)
 
 type Engine struct {
 	shards []*Shard
-	size   int
 }
 
-func NewEngine(logSize int) (*Engine, error) {
-	if logSize < 0 {
-		return nil, errors.New("log shards amount must be non-negative")
+func NewEngine(shardsNumber int) (*Engine, error) {
+	if shardsNumber < 1 {
+		return nil, errors.New("shards number must be positive")
 	}
 
-	size := 1 << logSize
-	shards := make([]*Shard, 0, size)
-	for range size {
+	shards := make([]*Shard, 0, shardsNumber)
+	for range shardsNumber {
 		shards = append(shards, NewShard())
 	}
 
 	return &Engine{
 		shards: shards,
-		size:   size,
 	}, nil
 }
 
-func (e *Engine) Get(key string) (string, error) {
-	hash := e.getHash(key) & uint32(e.size-1)
-	return e.shards[hash].Get(key)
+func (e *Engine) Get(key string) (string, bool) {
+	return e.shards[e.getHash(key)].Get(key)
 }
 
 func (e *Engine) Set(key, value string) {
-	hash := e.getHash(key) & uint32(e.size-1)
-	e.shards[hash].Set(key, value)
+	e.shards[e.getHash(key)].Set(key, value)
 }
 
 func (e *Engine) Del(key string) {
-	hash := e.getHash(key) & uint32(e.size-1)
-	e.shards[hash].Del(key)
+	e.shards[e.getHash(key)].Del(key)
 }
 
 func (e *Engine) getHash(key string) uint32 {
-	var hash uint32 = 5381
-
-	for _, v := range key {
-		hash = ((hash << 5) + hash) + uint32(v)
-	}
-
-	return hash
+	h := fnv.New32a()
+	h.Write([]byte(key))
+	return h.Sum32() % uint32(len(e.shards))
 }

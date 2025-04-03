@@ -1,23 +1,25 @@
 version: '3'
 
-vars:
-  CLIENT_ADDRESS: 127.0.0.1:3223
-
 tasks:
-  server:
+  server-master:
     env:
-      CONFIG_PATH: ./config/server.yaml
+      CONFIG_PATH: ./config/master.yaml
+    cmds:
+      - go run ./cmd/db
+  server-slave:
+    env:
+      CONFIG_PATH: ./config/slave.yaml
     cmds:
       - go run ./cmd/db
   client:
     cmds:
-      - go run ./cmd/client --address={{.CLIENT_ADDRESS}}
+      - go run ./cmd/client --address={{.SERVER_ADDRESS}}
   lint:
     cmds:
       - golangci-lint run
   test:
     cmds:
-      - go test -v ./...
+      - go test -short -race -count=1 -timeout 30s ./...
   build:
     cmds:
       - go build -o ./bin/db ./cmd/db
@@ -25,3 +27,43 @@ tasks:
   clean:
     cmds:
       - rm -rf ./bin
+  docker-build:
+    cmds:
+      - docker build -t db:latest .
+  docker-run-container:
+    internal: true
+    cmds:
+      - docker network create db-network || true
+      - docker run --rm --cpus={{.CPUS}} --name {{.TYPE}} -p {{.PORT}}:{{.PORT}} -v {{.CONFIG_DIR}}:/app/config -v {{.DATA_DIR}}:/app/data -e CONFIG_PATH=./config/{{.TYPE}}.yaml --network db-network db:latest
+  docker-run:
+    deps:
+      - task: docker-run-container
+        vars:
+          CPUS: "2"
+          TYPE: master
+          PORT: 3223
+          CONFIG_DIR: ./config
+          DATA_DIR: ./data
+      - task: docker-run-container
+        vars:
+          CPUS: "1"
+          TYPE: slave
+          PORT: 3224
+          CONFIG_DIR: ./config
+          DATA_DIR: ./data
+  docker-test-run:
+    deps:
+      - task: docker-run-container
+        vars:
+          CPUS: "2"
+          TYPE: master
+          PORT: 3223
+          CONFIG_DIR: ./config/testconfig
+          DATA_DIR: ./tests/testdata
+      - task: docker-run-container
+        vars:
+          CPUS: "1"
+          TYPE: slave
+          PORT: 3224
+          CONFIG_DIR: ./config/testconfig
+          DATA_DIR: ./tests/testdata

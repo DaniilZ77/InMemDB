@@ -35,7 +35,7 @@ func (p *Parser) Parse(source string) (*Command, error) {
 	}
 }
 
-func (p *Parser) parseArgs(commandType commandType, tokens []string) (*Command, error) {
+func (p *Parser) parseArgs(commandType CommandType, tokens []string) (*Command, error) {
 	if len(tokens) != commandType.argsCount() {
 		p.log.Warn("bad amount of args", slog.Int("args", len(tokens)), slog.Int("expected", commandType.argsCount()))
 		return nil, fmt.Errorf("%w: bad amount of args", ErrInvalidCommand)

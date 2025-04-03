@@ -1,44 +1,74 @@
 package config
 
 import (
+	"errors"
 	"flag"
+	"fmt"
 	"os"
 	"time"
 
-	"github.com/ilyakaznacheev/cleanenv"
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-	Engine   Engine  `yaml:"engine"`
-	Network  Network `yaml:"network"`
-	LogLevel string  `yaml:"log_level" env-default:"info"`
+	Engine      *Engine      `yaml:"engine"`
+	Network     *Network     `yaml:"network"`
+	LogLevel    string       `yaml:"log_level"`
+	Wal         *Wal         `yaml:"wal"`
+	Replication *Replication `yaml:"replication"`
 }
 
 type Network struct {
-	Address        string        `yaml:"address" env-default:"127.0.0.1:3223"`
-	MaxConnections int           `yaml:"max_connections" env-default:"100"`
-	MaxMessageSize int           `yaml:"max_message_size" env-default:"4000"`
-	IdleTimeout    time.Duration `yaml:"idle_timeout" env-default:"5m"`
+	Address        string        `yaml:"address"`
+	MaxConnections int           `yaml:"max_connections"`
+	MaxMessageSize string        `yaml:"max_message_size"`
+	IdleTimeout    time.Duration `yaml:"idle_timeout"`
 }
 
 type Engine struct {
-	Type            string `yaml:"type" env-default:"in_memory"`
-	LogShardsAmount int    `yaml:"log_shards_amount" env-default:"3"`
+	Type         string `yaml:"type"`
+	ShardsNumber int    `yaml:"shards_number"`
 }
 
-func NewConfig() *Config {
+type Wal struct {
+	FlushingBatchSize    int           `yaml:"flushing_batch_size"`
+	FlushingBatchTimeout time.Duration `yaml:"flushing_batch_timeout"`
+	MaxSegmentSize       string        `yaml:"max_segment_size"`
+	DataDirectory        string        `yaml:"data_directory"`
+}
+
+type Replication struct {
+	ReplicaType   string        `yaml:"replica_type"`
+	MasterAddress string        `yaml:"master_address"`
+	SyncInterval  time.Duration `yaml:"sync_interval"`
+}
+
+func MustConfig() *Config {
+	config, err := NewConfig()
+	if err != nil {
+		panic(err)
+	}
+
+	return config
+}
+
+func NewConfig() (*Config, error) {
 	configPath, ok := getConfigPath()
 	if !ok {
-		panic("config path is not set")
+		return nil, errors.New("config path is not set")
 	}
 
-	var cfg Config
-
-	if err := cleanenv.ReadConfig(configPath, &cfg); err != nil {
-		panic("failed to read config: " + err.Error())
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read config: %w", err)
 	}
 
-	return &cfg
+	var config Config
+	if err = yaml.Unmarshal(data, &config); err != nil {
+		return nil, fmt.Errorf("failed to read config: %w", err)
+	}
+
+	return &config, nil
 }
 
 func getConfigPath() (configPath string, ok bool) {

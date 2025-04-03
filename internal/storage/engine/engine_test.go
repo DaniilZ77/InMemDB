@@ -17,22 +17,22 @@ func TestEngineGet_Success(t *testing.T) {
 	engine, err := NewEngine(testLogShardsAmount)
 	require.NoError(t, err)
 
-	engine.shards[engine.getHash("name")%(1<<testLogShardsAmount)].data.Store("name", "Daniil")
+	engine.shards[engine.getHash("name")%(1<<testLogShardsAmount)].data["name"] = "Daniil"
 
-	res, err := engine.Get("name")
-	require.NoError(t, err)
+	res, ok := engine.Get("name")
+	require.True(t, ok)
 	require.NotNil(t, res)
 	assert.Equal(t, "Daniil", res)
 }
 
-func TestEngineGet_Fail(t *testing.T) {
+func TestEngineGet_NotFound(t *testing.T) {
 	t.Parallel()
 
 	engine, err := NewEngine(testLogShardsAmount)
 	require.NoError(t, err)
 
-	_, err = engine.Get("name")
-	assert.Error(t, err)
+	_, ok := engine.Get("name")
+	assert.False(t, ok)
 }
 
 func TesEngineSet(t *testing.T) {
@@ -42,7 +42,7 @@ func TesEngineSet(t *testing.T) {
 	require.NoError(t, err)
 
 	engine.Set("name", "Daniil")
-	value, ok := engine.shards[engine.getHash("name")%(1<<testLogShardsAmount)].data.Load("name")
+	value, ok := engine.shards[engine.getHash("name")%(1<<testLogShardsAmount)].data["name"]
 	assert.True(t, ok)
 	assert.Equal(t, "Daniil", value)
 }
@@ -55,9 +55,9 @@ func TestEngineDel(t *testing.T) {
 
 	hash := engine.getHash("name") % (1 << testLogShardsAmount)
 
-	engine.shards[hash].data.Store("name", "Daniil")
+	engine.shards[hash].data["name"] = "Daniil"
 
 	engine.Del("name")
-	_, ok := engine.shards[hash].data.Load("name")
+	_, ok := engine.shards[hash].data["name"]
 	assert.False(t, ok)
 }

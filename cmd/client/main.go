@@ -12,7 +12,11 @@ func main() {
 
 	flag.Parse()
 
-	client := client.NewClient(address)
+	client, err := client.NewClient(address)
+	if err != nil {
+		panic("failed to init client: " + err.Error())
+	}
+
 	if err := client.Run(); err != nil {
 		panic(err)
 	}

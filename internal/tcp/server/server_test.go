@@ -1,101 +1,109 @@
 package server
 
 import (
-	"bufio"
-	"fmt"
+	"context"
 	"io"
 	"log/slog"
 	"net"
-	"strings"
+	"os"
+	"sync"
 	"testing"
 	"time"
 
-	"github.com/DaniilZ77/InMemDB/internal/config"
-	"github.com/DaniilZ77/InMemDB/internal/tcp/server/mocks"
+	"github.com/DaniilZ77/InMemDB/internal/common"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
-func TestHandler(t *testing.T) {
-	database := mocks.NewDatabase(t)
-
-	cfg := &config.Config{
-		Network: config.Network{
-			Address:        "127.0.0.1:0",
-			MaxConnections: 5,
-			MaxMessageSize: 100,
-			IdleTimeout:    5 * time.Second,
-		},
-	}
-
-	server, err := NewServer(cfg, database, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+func TestServer(t *testing.T) {
+	const maxConnections = 5
+	const maxMessageSize = 100
+	server, err := NewServer(
+		"127.0.0.1:0",
+		maxMessageSize,
+		slog.New(slog.NewJSONHandler(io.Discard, nil)),
+		WithIdleTimeout(time.Second),
+		WithMaxConnections(maxConnections))
 	require.NoError(t, err)
 
-	go func() {
-		if err := server.Run(); err != nil {
-			panic(err)
-		}
-	}()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
 
-	time.Sleep(500 * time.Millisecond)
+	go server.Run(ctx, func(b []byte) ([]byte, error) { // nolint
+		return []byte("OK"), nil
+	})
+	time.Sleep(100 * time.Millisecond)
 
-	address := server.lst.Addr().String()
-	command := "set name Daniil"
+	address := server.listener.Addr().String()
+	command := []byte("set name Daniil")
 
 	t.Run("success", func(t *testing.T) {
-		database.EXPECT().Execute(mock.MatchedBy(func(source string) bool {
-			return strings.TrimSpace(source) == command
-		})).Return("OK").Once()
-
 		conn, err := net.Dial("tcp", address)
 		require.NoError(t, err)
-		defer conn.Close()
+		t.Cleanup(func() { conn.Close() }) // nolint
 
-		resp := bufio.NewReader(conn)
-
-		_, err = fmt.Fprintln(conn, command)
+		_, err = common.Write(conn, command)
 		require.NoError(t, err)
 
-		body, err := resp.ReadString('\n')
+		buffer := make([]byte, 1024)
+		n, err := common.Read(conn, buffer)
 		require.NoError(t, err)
 
-		assert.Equal(t, "OK", strings.TrimSpace(body))
+		assert.Equal(t, "OK", string(buffer[:n]))
 	})
 
 	t.Run("exceed client limit", func(t *testing.T) {
-		for range cfg.Network.MaxConnections {
+		for range maxConnections {
 			conn, err := net.Dial("tcp", address)
 			require.NoError(t, err)
-			defer conn.Close()
+			t.Cleanup(func() { conn.Close() }) // nolint
 		}
-
-		database.EXPECT().Execute(mock.MatchedBy(func(source string) bool {
-			return strings.TrimSpace(source) == command
-		})).Return("OK").Once()
 
 		conn, err := net.Dial("tcp", address)
 		require.NoError(t, err)
+		t.Cleanup(func() { conn.Close() }) // nolint
 
-		err = conn.SetReadDeadline(time.Now().Add(time.Second))
-		require.NoError(t, err)
-		defer conn.Close()
-
-		_, err = fmt.Fprintln(conn, command)
+		_, err = common.Write(conn, command)
 		require.NoError(t, err)
 
-		_, err = io.ReadAll(conn)
-		assert.Error(t, err)
+		err = conn.SetReadDeadline(time.Now().Add(100 * time.Millisecond))
+		require.NoError(t, err)
+
+		_, err = conn.Read(make([]byte, 10))
+		assert.ErrorIs(t, err, os.ErrDeadlineExceeded)
 	})
 
 	t.Run("exceed read deadline", func(t *testing.T) {
 		conn, err := net.Dial("tcp", address)
 		require.NoError(t, err)
-		defer conn.Close()
+		t.Cleanup(func() { conn.Close() }) // nolint
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(1100 * time.Millisecond)
 
-		body, _ := io.ReadAll(conn)
-		assert.Empty(t, body)
+		_, err = conn.Read(make([]byte, 10))
+		assert.ErrorIs(t, err, io.EOF)
+	})
+
+	t.Run("force shutdown after context cancel", func(t *testing.T) {
+		conn, err := net.Dial("tcp", address)
+		require.NoError(t, err)
+		t.Cleanup(func() { conn.Close() }) // nolint
+
+		time.Sleep(100 * time.Millisecond)
+
+		cancel()
+
+		shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+		t.Cleanup(shutdownCancel)
+
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			server.Shutdown(shutdownCtx)
+		}()
+		wg.Wait()
+
+		assert.Error(t, shutdownCtx.Err())
 	})
 }

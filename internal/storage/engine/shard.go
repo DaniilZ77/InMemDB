@@ -1,30 +1,33 @@
 package engine
 
-import (
-	"sync"
-)
+import "sync"
 
 type Shard struct {
-	data sync.Map
+	mu   sync.RWMutex
+	data map[string]string
 }
 
 func NewShard() *Shard {
-	return &Shard{}
+	return &Shard{
+		data: make(map[string]string),
+	}
 }
 
-func (e *Shard) Get(key string) (string, error) {
-	value, ok := e.data.Load(key)
-	if !ok {
-		return "", ErrKeyNotFound
-	}
-
-	return value.(string), nil
+func (e *Shard) Get(key string) (string, bool) {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	value, ok := e.data[key]
+	return value, ok
 }
 
 func (e *Shard) Set(key, value string) {
-	e.data.Store(key, value)
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.data[key] = value
 }
 
 func (e *Shard) Del(key string) {
-	e.data.Delete(key)
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	delete(e.data, key)
 }

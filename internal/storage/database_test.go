@@ -5,19 +5,23 @@ import (
 	"io"
 	"log/slog"
 	"testing"
+	"time"
 
 	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
-	engineerrors "github.com/DaniilZ77/InMemDB/internal/storage/engine"
-	"github.com/DaniilZ77/InMemDB/internal/storage/mocks"
+	"github.com/DaniilZ77/InMemDB/internal/storage/wal"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
 func TestExecute_Success(t *testing.T) {
-	compute := mocks.NewCompute(t)
-	engine := mocks.NewEngine(t)
+	t.Parallel()
 
-	database, err := NewDatabase(compute, engine, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	compute := NewMockCompute(t)
+	engine := NewMockEngine(t)
+	wal := NewMockWal(t)
+
+	database, err := NewDatabase(compute, engine, wal, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -34,8 +38,8 @@ func TestExecute_Success(t *testing.T) {
 				compute.EXPECT().Parse("get name").Return(&parser.Command{
 					Type: parser.GET,
 					Args: []string{"name"},
-				}, nil)
-				engine.EXPECT().Get("name").Return("Daniil", nil).Once()
+				}, nil).Once()
+				engine.EXPECT().Get("name").Return("Daniil", true).Once()
 			},
 		},
 		{
@@ -43,11 +47,13 @@ func TestExecute_Success(t *testing.T) {
 			command:  "set name Daniil",
 			expected: "OK",
 			mock: func() {
-				compute.EXPECT().Parse("set name Daniil").Return(&parser.Command{
+				command := &parser.Command{
 					Type: parser.SET,
 					Args: []string{"name", "Daniil"},
-				}, nil)
+				}
+				compute.EXPECT().Parse("set name Daniil").Return(command, nil).Once()
 				engine.EXPECT().Set("name", "Daniil").Return().Once()
+				wal.EXPECT().Save(command).Return(true).Once()
 			},
 		},
 		{
@@ -55,11 +61,13 @@ func TestExecute_Success(t *testing.T) {
 			command:  "del name",
 			expected: "OK",
 			mock: func() {
-				compute.EXPECT().Parse("del name").Return(&parser.Command{
+				command := &parser.Command{
 					Type: parser.DEL,
 					Args: []string{"name"},
-				}, nil)
+				}
+				compute.EXPECT().Parse("del name").Return(command, nil).Once()
 				engine.EXPECT().Del("name").Return().Once()
+				wal.EXPECT().Save(command).Return(true).Once()
 			},
 		},
 		{
@@ -70,8 +78,8 @@ func TestExecute_Success(t *testing.T) {
 				compute.EXPECT().Parse("get name").Return(&parser.Command{
 					Type: parser.GET,
 					Args: []string{"name"},
-				}, nil)
-				engine.EXPECT().Get("name").Return("", engineerrors.ErrKeyNotFound).Once()
+				}, nil).Once()
+				engine.EXPECT().Get("name").Return("", false).Once()
 			},
 		},
 	}
@@ -87,14 +95,146 @@ func TestExecute_Success(t *testing.T) {
 }
 
 func TestExecute_ParserError(t *testing.T) {
-	compute := mocks.NewCompute(t)
-	engine := mocks.NewEngine(t)
+	t.Parallel()
 
-	database, err := NewDatabase(compute, engine, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	compute := NewMockCompute(t)
+	engine := NewMockEngine(t)
+
+	database, err := NewDatabase(compute, engine, nil, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
 	require.NoError(t, err)
 
 	compute.EXPECT().Parse("get name").Return(nil, errors.New("internal error")).Once()
 
 	res := database.Execute("get name")
 	assert.Contains(t, res, "ERROR")
+}
+
+func TestExecute_NilWal(t *testing.T) {
+	t.Parallel()
+
+	compute := NewMockCompute(t)
+	engine := NewMockEngine(t)
+
+	database, err := NewDatabase(compute, engine, nil, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	require.NoError(t, err)
+
+	commandStr := "set name Daniil"
+	compute.EXPECT().Parse(commandStr).Return(&parser.Command{
+		Type: parser.SET,
+		Args: []string{"name", "Daniil"},
+	}, nil)
+	engine.EXPECT().Set("name", "Daniil").Return().Once()
+
+	res := database.Execute(commandStr)
+	assert.Equal(t, "OK", res)
+}
+
+func TestExecute_WalSaveError(t *testing.T) {
+	t.Parallel()
+
+	compute := NewMockCompute(t)
+	engine := NewMockEngine(t)
+	wal := NewMockWal(t)
+
+	database, err := NewDatabase(compute, engine, wal, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	require.NoError(t, err)
+
+	command := &parser.Command{
+		Type: parser.SET,
+		Args: []string{"name", "Daniil"},
+	}
+	commandStr := "set name Daniil"
+	compute.EXPECT().Parse(commandStr).Return(command, nil).Once()
+	wal.EXPECT().Save(command).Return(false).Once()
+
+	res := database.Execute(commandStr)
+	assert.Contains(t, res, "ERROR")
+}
+
+func TestRecover_Success(t *testing.T) {
+	t.Parallel()
+
+	compute := NewMockCompute(t)
+	engine := NewMockEngine(t)
+	w := NewMockWal(t)
+
+	database, err := NewDatabase(compute, engine, w, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	require.NoError(t, err)
+
+	w.EXPECT().Recover().Return([]wal.Command{
+		{CommandType: 1, Args: []string{"name", "Daniil"}},
+		{CommandType: 2, Args: []string{"name"}},
+		{CommandType: 0, Args: []string{"name"}},
+	}, nil).Once()
+	engine.EXPECT().Set("name", "Daniil").Return().Once()
+	engine.EXPECT().Del("name").Return().Once()
+
+	err = database.Recover()
+	assert.Nil(t, err)
+}
+
+func TestRecover_NilWal(t *testing.T) {
+	t.Parallel()
+
+	compute := NewMockCompute(t)
+	engine := NewMockEngine(t)
+
+	database, err := NewDatabase(compute, engine, nil, nil, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	require.NoError(t, err)
+
+	err = database.Recover()
+	assert.Nil(t, err)
+}
+
+func TestSlaveReplica_ForbiddenCommands(t *testing.T) {
+	t.Parallel()
+
+	compute := NewMockCompute(t)
+	engine := NewMockEngine(t)
+	replica := NewMockReplication(t)
+
+	replica.EXPECT().IsSlave().Return(true)
+	replica.EXPECT().GetReplicationStream().Return(nil).Once()
+
+	database, err := NewDatabase(compute, engine, nil, replica, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	require.NoError(t, err)
+
+	compute.EXPECT().Parse(mock.Anything).Return(&parser.Command{Type: parser.SET}, nil).Once()
+	res := database.Execute("set a b")
+	assert.Equal(t, errReplicaNotSupport, res)
+
+	compute.EXPECT().Parse(mock.Anything).Return(&parser.Command{Type: parser.DEL}, nil).Once()
+	res = database.Execute("del a")
+	assert.Equal(t, errReplicaNotSupport, res)
+
+	time.Sleep(100 * time.Millisecond)
+}
+
+func TestReplicationStream(t *testing.T) {
+	t.Parallel()
+
+	compute := NewMockCompute(t)
+	engine := NewMockEngine(t)
+	replica := NewMockReplication(t)
+
+	engine.EXPECT().Set(mock.Anything, mock.Anything).Return().Once()
+	engine.EXPECT().Del(mock.Anything).Return().Once()
+
+	replicationStream := make(chan []wal.Command)
+	replica.EXPECT().IsSlave().Return(true).Once()
+	replica.EXPECT().GetReplicationStream().Return(replicationStream).Once()
+
+	_, err := NewDatabase(compute, engine, nil, replica, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+	require.NoError(t, err)
+
+	commands := []wal.Command{
+		{CommandType: setCommand, Args: []string{"name", "Daniil"}},
+		{CommandType: delCommand, Args: []string{"name"}},
+	}
+
+	go func() {
+		replicationStream <- commands
+	}()
+
+	time.Sleep(100 * time.Millisecond)
 }

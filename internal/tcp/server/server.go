@@ -1,101 +1,149 @@
 package server
 
 import (
+	"context"
 	"errors"
-	"fmt"
 	"log/slog"
 	"net"
+	"sync"
 	"time"
 
-	"github.com/DaniilZ77/InMemDB/internal/config"
-	"github.com/DaniilZ77/InMemDB/internal/lib/semaphore"
+	"github.com/DaniilZ77/InMemDB/internal/common"
+	"github.com/DaniilZ77/InMemDB/internal/concurrency"
 )
 
 type Server struct {
-	lst         net.Listener
-	database    Database
-	log         *slog.Logger
-	bufSize     int
+	listener    net.Listener
+	bufferSize  int
 	idleTimeout time.Duration
-
-	semaphore *semaphore.Semaphore
+	logic       func([]byte) ([]byte, error)
+	semaphore   *concurrency.Semaphore
+	wg          sync.WaitGroup
+	log         *slog.Logger
 }
 
-//go:generate mockery --name=Database --with-expecter
+const (
+	defaultBufferSize = 4 << 10
+)
+
+//go:generate mockery --name=Database --case=snake --inpackage --inpackage-suffix --with-expecter
 type Database interface {
 	Execute(source string) string
 }
 
 func NewServer(
-	cfg *config.Config,
-	database Database,
-	log *slog.Logger) (*Server, error) {
-	if cfg == nil {
-		return nil, errors.New("config is nil")
-	}
-	if database == nil {
-		return nil, errors.New("database is nil")
-	}
+	address string,
+	maxMessageSize int,
+	log *slog.Logger, opts ...ServerOption) (*Server, error) {
 	if log == nil {
 		return nil, errors.New("logger is nil")
 	}
 
-	lst, err := net.Listen("tcp", cfg.Network.Address)
+	listener, err := net.Listen("tcp", address)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Info("started listening", slog.String("address", cfg.Network.Address))
-	return &Server{
-		lst:         lst,
-		database:    database,
-		log:         log,
-		bufSize:     cfg.Network.MaxMessageSize,
-		idleTimeout: cfg.Network.IdleTimeout,
-		semaphore:   semaphore.NewSemaphore(cfg.Network.MaxConnections),
-	}, nil
+	log.Info("started listening", slog.String("address", address))
+
+	server := &Server{
+		listener:   listener,
+		bufferSize: maxMessageSize,
+		log:        log,
+	}
+
+	for _, opt := range opts {
+		opt(server)
+	}
+
+	if server.bufferSize == 0 {
+		server.bufferSize = defaultBufferSize
+	}
+
+	return server, nil
 }
 
-func (s *Server) Run() error {
+func (s *Server) Run(ctx context.Context, logic func([]byte) ([]byte, error)) error {
+	s.logic = logic
 	for {
-		conn, err := s.lst.Accept()
+		connection, err := s.listener.Accept()
 		if err != nil {
 			return err
 		}
 
-		go s.recoverer(s.clientsLimiter(s.handler))(conn)
+		s.wg.Add(1)
+		go s.recoverer(s.clientsLimiter(s.handler))(ctx, connection)
 	}
 }
 
-func (s *Server) handler(conn net.Conn) {
-	defer conn.Close()
+func (s *Server) Shutdown(ctx context.Context) {
+	if err := s.listener.Close(); err != nil {
+		s.log.Error("failed to close listener", slog.Any("error", err))
+	}
+
+	doneConnections := make(chan struct{})
+	go func() {
+		s.wg.Wait()
+		close(doneConnections)
+	}()
+
+	select {
+	case <-ctx.Done():
+		s.log.Info("force shutdown")
+	case <-doneConnections:
+		s.log.Info("all connections closed")
+	}
+}
+
+func (s *Server) handler(ctx context.Context, connection net.Conn) {
+	s.log.Debug("new connection", slog.String("remote", connection.RemoteAddr().String()))
+
+	defer func() {
+		if err := connection.Close(); err != nil {
+			s.log.Error("failed to close connection", slog.Any("error", err))
+		}
+		s.wg.Done()
+	}()
 
 	var err error
 	var n int
-	var resp string
-	buf := make([]byte, s.bufSize)
+	buffer := make([]byte, s.bufferSize)
 	for {
-		err = conn.SetReadDeadline(time.Now().Add(s.idleTimeout))
-		if err != nil {
-			s.log.Error("set read deadline failure", slog.Any("error", err))
-			break
+		if ctx.Err() != nil {
+			return
 		}
 
-		n, err = conn.Read(buf)
+		if s.idleTimeout != 0 {
+			if err = connection.SetReadDeadline(time.Now().Add(s.idleTimeout)); err != nil {
+				s.log.Error("set read deadline failure", slog.Any("error", err))
+				return
+			}
+		}
+		n, err = common.Read(connection, buffer)
 		if err != nil {
 			var ne net.Error
 			if errors.As(err, &ne) && ne.Timeout() {
 				s.log.Warn("idle connection", slog.Any("error", err))
-				break
+				return
 			}
 			s.log.Error("read failure", slog.Any("error", err))
-			break
+			return
 		}
 
-		resp = s.database.Execute(string(buf[:n]))
-		if _, err = fmt.Fprintln(conn, resp); err != nil {
+		response, err := s.logic(buffer[:n])
+		if err != nil {
+			s.log.Error("failed to execute logic", slog.Any("error", err))
+			return
+		}
+		if s.idleTimeout != 0 {
+			if err = connection.SetWriteDeadline(time.Now().Add(s.idleTimeout)); err != nil {
+				s.log.Error("set write deadline failure", slog.Any("error", err))
+				return
+			}
+		}
+		if _, err = common.Write(connection, response); err != nil {
 			s.log.Error("write failure", slog.Any("error", err))
-			break
+			return
 		}
 	}
 }
