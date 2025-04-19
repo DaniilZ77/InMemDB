@@ -26,16 +26,13 @@ type LogsWriter interface {
 }
 
 type Wal struct {
-	logsReader LogsReader
-	logsWriter LogsWriter
-
+	logsReader   LogsReader
+	logsWriter   LogsWriter
 	batchChannel chan Batch
 	batchTimeout time.Duration
-
-	log *slog.Logger
-
-	mu    sync.Mutex
-	batch *Batch
+	log          *slog.Logger
+	mu           sync.Mutex
+	batch        *Batch
 }
 
 func NewWal(

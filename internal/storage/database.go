@@ -40,6 +40,7 @@ type Wal interface {
 	Recover() ([]wal.Command, error)
 }
 
+//go:generate mockery --name=Coordinator --case=snake --inpackage --inpackage-suffix --with-expecter
 type Coordinator interface {
 	BeginTransaction() *mvcc.Transaction
 	Set(key, value string) error
@@ -47,6 +48,7 @@ type Coordinator interface {
 	Del(key string) error
 }
 
+//go:generate mockery --name=Transaction --case=snake --inpackage --inpackage-suffix --with-expecter
 type Transaction interface {
 	Commit() error
 	Rollback() error
@@ -235,10 +237,10 @@ func (d *Database) delCommand(client string, command *parser.Command) string {
 		if errors.Is(err, mvcc.ErrTransactionInterfered) {
 			return fmt.Sprintf("ERROR(%s)", err.Error())
 		}
-		return "OK"
+		return errInternal
 	}
 
-	return errInternal
+	return "OK"
 }
 
 func (d *Database) txCommand(client string, command *parser.Command) string {

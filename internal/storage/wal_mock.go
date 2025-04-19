@@ -3,7 +3,6 @@
 package storage
 
 import (
-	parser "github.com/DaniilZ77/InMemDB/internal/compute/parser"
 	wal "github.com/DaniilZ77/InMemDB/internal/storage/wal"
 	mock "github.com/stretchr/testify/mock"
 )
@@ -74,52 +73,6 @@ func (_c *MockWal_Recover_Call) Return(_a0 []wal.Command, _a1 error) *MockWal_Re
 }
 
 func (_c *MockWal_Recover_Call) RunAndReturn(run func() ([]wal.Command, error)) *MockWal_Recover_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// Save provides a mock function with given fields: command
-func (_m *MockWal) Save(command *parser.Command) bool {
-	ret := _m.Called(command)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Save")
-	}
-
-	var r0 bool
-	if rf, ok := ret.Get(0).(func(*parser.Command) bool); ok {
-		r0 = rf(command)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-
-	return r0
-}
-
-// MockWal_Save_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Save'
-type MockWal_Save_Call struct {
-	*mock.Call
-}
-
-// Save is a helper method to define mock.On call
-//   - command *parser.Command
-func (_e *MockWal_Expecter) Save(command interface{}) *MockWal_Save_Call {
-	return &MockWal_Save_Call{Call: _e.mock.On("Save", command)}
-}
-
-func (_c *MockWal_Save_Call) Run(run func(command *parser.Command)) *MockWal_Save_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*parser.Command))
-	})
-	return _c
-}
-
-func (_c *MockWal_Save_Call) Return(_a0 bool) *MockWal_Save_Call {
-	_c.Call.Return(_a0)
-	return _c
-}
-
-func (_c *MockWal_Save_Call) RunAndReturn(run func(*parser.Command) bool) *MockWal_Save_Call {
 	_c.Call.Return(run)
 	return _c
 }

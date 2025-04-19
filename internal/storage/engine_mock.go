@@ -17,42 +17,9 @@ func (_m *MockEngine) EXPECT() *MockEngine_Expecter {
 	return &MockEngine_Expecter{mock: &_m.Mock}
 }
 
-// Del provides a mock function with given fields: key
-func (_m *MockEngine) Del(key string) {
-	_m.Called(key)
-}
-
-// MockEngine_Del_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Del'
-type MockEngine_Del_Call struct {
-	*mock.Call
-}
-
-// Del is a helper method to define mock.On call
-//   - key string
-func (_e *MockEngine_Expecter) Del(key interface{}) *MockEngine_Del_Call {
-	return &MockEngine_Del_Call{Call: _e.mock.On("Del", key)}
-}
-
-func (_c *MockEngine_Del_Call) Run(run func(key string)) *MockEngine_Del_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
-	})
-	return _c
-}
-
-func (_c *MockEngine_Del_Call) Return() *MockEngine_Del_Call {
-	_c.Call.Return()
-	return _c
-}
-
-func (_c *MockEngine_Del_Call) RunAndReturn(run func(string)) *MockEngine_Del_Call {
-	_c.Run(run)
-	return _c
-}
-
-// Get provides a mock function with given fields: key
-func (_m *MockEngine) Get(key string) (string, bool) {
-	ret := _m.Called(key)
+// Get provides a mock function with given fields: version, key
+func (_m *MockEngine) Get(version int64, key string) (string, bool) {
+	ret := _m.Called(version, key)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Get")
@@ -60,17 +27,17 @@ func (_m *MockEngine) Get(key string) (string, bool) {
 
 	var r0 string
 	var r1 bool
-	if rf, ok := ret.Get(0).(func(string) (string, bool)); ok {
-		return rf(key)
+	if rf, ok := ret.Get(0).(func(int64, string) (string, bool)); ok {
+		return rf(version, key)
 	}
-	if rf, ok := ret.Get(0).(func(string) string); ok {
-		r0 = rf(key)
+	if rf, ok := ret.Get(0).(func(int64, string) string); ok {
+		r0 = rf(version, key)
 	} else {
 		r0 = ret.Get(0).(string)
 	}
 
-	if rf, ok := ret.Get(1).(func(string) bool); ok {
-		r1 = rf(key)
+	if rf, ok := ret.Get(1).(func(int64, string) bool); ok {
+		r1 = rf(version, key)
 	} else {
 		r1 = ret.Get(1).(bool)
 	}
@@ -84,14 +51,15 @@ type MockEngine_Get_Call struct {
 }
 
 // Get is a helper method to define mock.On call
+//   - version int64
 //   - key string
-func (_e *MockEngine_Expecter) Get(key interface{}) *MockEngine_Get_Call {
-	return &MockEngine_Get_Call{Call: _e.mock.On("Get", key)}
+func (_e *MockEngine_Expecter) Get(version interface{}, key interface{}) *MockEngine_Get_Call {
+	return &MockEngine_Get_Call{Call: _e.mock.On("Get", version, key)}
 }
 
-func (_c *MockEngine_Get_Call) Run(run func(key string)) *MockEngine_Get_Call {
+func (_c *MockEngine_Get_Call) Run(run func(version int64, key string)) *MockEngine_Get_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string))
+		run(args[0].(int64), args[1].(string))
 	})
 	return _c
 }
@@ -101,14 +69,14 @@ func (_c *MockEngine_Get_Call) Return(_a0 string, _a1 bool) *MockEngine_Get_Call
 	return _c
 }
 
-func (_c *MockEngine_Get_Call) RunAndReturn(run func(string) (string, bool)) *MockEngine_Get_Call {
+func (_c *MockEngine_Get_Call) RunAndReturn(run func(int64, string) (string, bool)) *MockEngine_Get_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
-// Set provides a mock function with given fields: key, value
-func (_m *MockEngine) Set(key string, value string) {
-	_m.Called(key, value)
+// Set provides a mock function with given fields: version, key, value
+func (_m *MockEngine) Set(version int64, key string, value *string) {
+	_m.Called(version, key, value)
 }
 
 // MockEngine_Set_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Set'
@@ -117,15 +85,16 @@ type MockEngine_Set_Call struct {
 }
 
 // Set is a helper method to define mock.On call
+//   - version int64
 //   - key string
-//   - value string
-func (_e *MockEngine_Expecter) Set(key interface{}, value interface{}) *MockEngine_Set_Call {
-	return &MockEngine_Set_Call{Call: _e.mock.On("Set", key, value)}
+//   - value *string
+func (_e *MockEngine_Expecter) Set(version interface{}, key interface{}, value interface{}) *MockEngine_Set_Call {
+	return &MockEngine_Set_Call{Call: _e.mock.On("Set", version, key, value)}
 }
 
-func (_c *MockEngine_Set_Call) Run(run func(key string, value string)) *MockEngine_Set_Call {
+func (_c *MockEngine_Set_Call) Run(run func(version int64, key string, value *string)) *MockEngine_Set_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(string), args[1].(string))
+		run(args[0].(int64), args[1].(string), args[2].(*string))
 	})
 	return _c
 }
@@ -135,7 +104,7 @@ func (_c *MockEngine_Set_Call) Return() *MockEngine_Set_Call {
 	return _c
 }
 
-func (_c *MockEngine_Set_Call) RunAndReturn(run func(string, string)) *MockEngine_Set_Call {
+func (_c *MockEngine_Set_Call) RunAndReturn(run func(int64, string, *string)) *MockEngine_Set_Call {
 	_c.Run(run)
 	return _c
 }
