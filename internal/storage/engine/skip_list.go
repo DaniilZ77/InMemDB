@@ -114,5 +114,5 @@ func (sn *SkipNode) find(key VersionedKey) *SkipNode {
 func (sl *SkipList) ExistsBetween(key1 VersionedKey, key2 VersionedKey) bool {
 	lower := sl.head.find(key1)
 	upper := sl.head.find(key2)
-	return lower != upper && lower.next != upper
+	return lower != upper
 }

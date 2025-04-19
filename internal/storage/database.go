@@ -262,7 +262,7 @@ func (d *Database) txCommand(client string, command *parser.Command) string {
 		}
 		if command.Type == parser.COMMIT {
 			if err := tx.Commit(); err != nil {
-				return errInternal
+				return fmt.Sprintf("ERROR(%s)", err.Error())
 			}
 		} else {
 			if err := tx.Rollback(); err != nil {

@@ -86,13 +86,11 @@ func TestSkipList_ExistsBetween(t *testing.T) {
 		value1 = "value1"
 		value2 = "value2"
 		value3 = "value3"
-		value4 = "value4"
 	)
 	sl.Insert(VersionedKey{"key1", 1}, &value1)
-	sl.Insert(VersionedKey{"key1", 2}, &value2)
-	sl.Insert(VersionedKey{"key1", 3}, &value3)
-	sl.Insert(VersionedKey{"key1", 4}, &value4)
+	sl.Insert(VersionedKey{"key1", 3}, &value2)
+	sl.Insert(VersionedKey{"key1", 4}, &value3)
 
-	assert.True(t, sl.ExistsBetween(VersionedKey{"key1", 1}, VersionedKey{"key1", 5}))
+	assert.True(t, sl.ExistsBetween(VersionedKey{"key1", 1}, VersionedKey{"key1", 3}))
 	assert.False(t, sl.ExistsBetween(VersionedKey{"key1", 2}, VersionedKey{"key1", 3}))
 }
