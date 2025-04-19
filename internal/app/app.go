@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/DaniilZ77/InMemDB/internal/compute/parser"
+	"github.com/DaniilZ77/InMemDB/internal/storage/mvcc"
 	"github.com/DaniilZ77/InMemDB/internal/storage/replication"
 
 	"github.com/DaniilZ77/InMemDB/internal/config"
@@ -42,7 +43,12 @@ func RunApp(ctx context.Context, config *config.Config) error {
 		})
 	}
 
-	database, err := NewDatabase(parser, engine, wal, replica, log)
+	coordinator, err := mvcc.NewCoordinator(engine, wal, log)
+	if err != nil {
+		return fmt.Errorf("failed to init coordinator: %w", err)
+	}
+
+	database, err := NewDatabase(parser, engine, coordinator, wal, replica, log)
 	if err != nil {
 		return fmt.Errorf("failed to init database: %w", err)
 	}
@@ -58,8 +64,8 @@ func RunApp(ctx context.Context, config *config.Config) error {
 	}
 
 	group.Go(func() error {
-		return mainServer.Run(groupCtx, func(b []byte) ([]byte, error) {
-			response := database.Execute(string(b))
+		return mainServer.Run(groupCtx, func(client string, b []byte) ([]byte, error) {
+			response := database.Execute(client, string(b))
 			return []byte(response), nil
 		})
 	})
@@ -73,7 +79,7 @@ func RunApp(ctx context.Context, config *config.Config) error {
 		}
 
 		group.Go(func() error {
-			return replicaServer.Run(groupCtx, func(b []byte) ([]byte, error) {
+			return replicaServer.Run(groupCtx, func(_ string, b []byte) ([]byte, error) {
 				response, err := r.HandleRequest(b)
 				return response, err
 			})

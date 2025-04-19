@@ -64,9 +64,9 @@ func NewWal(
 	}, nil
 }
 
-func (w *Wal) Save(command *parser.Command) bool {
+func (w *Wal) Save(txID int64, command *parser.Command) bool {
 	w.mu.Lock()
-	w.batch.AppendCommand(command)
+	w.batch.AppendCommand(txID, command)
 	batch := *w.batch
 	if w.batch.IsFull() {
 		w.batch.ResetBatch()
