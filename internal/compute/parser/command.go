@@ -61,10 +61,6 @@ func NewCommitCommand() *Command {
 	return &Command{Type: COMMIT}
 }
 
-func NewRollbackCommand() *Command {
-	return &Command{Type: ROLLBACK}
-}
-
 func (ct CommandType) argsCount() int {
 	switch ct {
 	case SET:

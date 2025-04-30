@@ -36,7 +36,10 @@ func (tx *Transaction) Get(key string) (string, bool) {
 		return "", false
 	}
 
-	if value, ok := tx.modified[key]; ok && value != nil {
+	if value, ok := tx.modified[key]; ok {
+		if value == nil {
+			return "", false
+		}
 		return *value, true
 	}
 	if value, ok := tx.cache[key]; ok {
@@ -92,10 +95,6 @@ func (tx *Transaction) Rollback() error {
 	if tx.finished {
 		return ErrTransactionFinished
 	}
-	defer func() { tx.finished = true }()
-
-	if tx.wal != nil && !tx.wal.Save(tx.beginID, parser.NewRollbackCommand()) {
-		return ErrWalFailure
-	}
+	tx.finished = true
 	return nil
 }

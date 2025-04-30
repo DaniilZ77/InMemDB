@@ -11,6 +11,7 @@ import (
 	"github.com/DaniilZ77/InMemDB/internal/concurrency"
 )
 
+//go:generate mockery --name=Engine --case=snake --inpackage --inpackage-suffix --with-expecter
 type Engine interface {
 	ExistsBetween(beginTxID, endTxID int64, key string) bool
 	SetMany(txID int64, modified map[string]*string)
@@ -18,6 +19,7 @@ type Engine interface {
 	Get(txID int64, key string) (string, bool)
 }
 
+//go:generate mockery --name=Wal --case=snake --inpackage --inpackage-suffix --with-expecter
 type Wal interface {
 	Save(txID int64, command *parser.Command) bool
 }

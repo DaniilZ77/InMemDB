@@ -141,9 +141,10 @@ func (d *Database) executeWalCommands(transactions map[int64][]wal.Command, comm
 		switch command.CommandType {
 		case commitCommand:
 			for _, v := range transactions[command.TxID] {
-				if v.CommandType == setCommand {
+				switch v.CommandType {
+				case setCommand:
 					d.engine.Set(0, v.Args[0], &v.Args[1])
-				} else if v.CommandType == delCommand {
+				case delCommand:
 					d.engine.Set(0, v.Args[0], nil)
 				}
 			}
