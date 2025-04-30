@@ -245,6 +245,10 @@ func (d *Database) delCommand(client string, command *parser.Command) string {
 }
 
 func (d *Database) txCommand(client string, command *parser.Command) string {
+	if d.replica != nil && d.replica.IsSlave() {
+		return errReplicaNotSupport
+	}
+
 	switch command.Type {
 	case parser.BEGIN:
 		tx := d.coordinator.BeginTransaction()
