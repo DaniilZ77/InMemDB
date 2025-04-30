@@ -27,7 +27,7 @@ func NewLogsManager(disk Disk, log *slog.Logger) *LogsManager {
 }
 
 func (w *LogsManager) WriteLogs(commands []Command) error {
-	buffer := new(bytes.Buffer)
+	buffer := &bytes.Buffer{}
 	encoder := gob.NewEncoder(buffer)
 	if err := encoder.Encode(commands); err != nil {
 		return err

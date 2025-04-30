@@ -6,27 +6,31 @@
 [![Go Reference](https://img.shields.io/badge/Go-Reference-blue.svg)](https://go.dev/)
 [![Tests](https://github.com/DaniilZ77/InMemDB/actions/workflows/ci.yml/badge.svg)](https://github.com/DaniilZ77/InMemDB/actions/workflows/ci.yml)
 
-
 ## Overview
 
-**InMemDB** — это in-memory key-value база данных с асинхронной репликацией. Она спроектирована для высокопроизводительного хранения и быстрого доступа к данным благодаря шардированию и встроенному механизму Write-Ahead Log (WAL) с пакетной записью операций на диск для обеспечения надёжности.
+**InMemDB** — in-memory key-value база данных с поддержкой транзакций, MVCC и асинхронной репликацией. Оптимизирована для высоконагруженных приложений благодаря шардированию и продвинутым механизмам управления конкурентным доступом.
 
 **Основные возможности:**
-- Хранение данных в памяти для мгновенного доступа.
-- Асинхронная репликация по модели master-slave.
-- Шардирование (распределение данных по нескольким shard'ам) для равномерной нагрузки.
-- Write-Ahead Log (WAL) для сохранности операций в случае сбоя.
-- Простые команды для работы с данными (`SET`, `GET`, `DEL`).
+- 🚀 Хранение данных в памяти для мгновенного доступа
+- ⚡ Поддержка ACID-транзакций (BEGIN, COMMIT, ROLLBACK)
+- 🔄 Multi-Version Concurrency Control (MVCC) для неблокирующих операций
+- 🌐 Асинхронная репликация по модели master-slave
+- 🧩 Шардирование данных с автоматическим балансированием нагрузки
+- 📝 Write-Ahead Log (WAL) с гарантированной записью операций
+- 🛠️ Расширенные команды для работы с данными и транзакциями
 
 ## Grammar
 
-Взаимодействие с InMemDB строится на использовании трёх типов команд:
+Обновлённая грамматика с поддержкой транзакций:
 ```ebnf
-query          = set_command | get_command | del_command
+query          = set_command | get_command | del_command | begin_command | commit_command | rollback_command
 
 set_command    = "SET" argument argument
 get_command    = "GET" argument
 del_command    = "DEL" argument
+begin_command  = "BEGIN"
+commit_command = "COMMIT"
+rollback_command = "ROLLBACK"
 
 argument       = punctuation | letter | digit { punctuation | letter | digit }
 

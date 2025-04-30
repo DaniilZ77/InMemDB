@@ -15,7 +15,7 @@ type Server struct {
 	listener    net.Listener
 	bufferSize  int
 	idleTimeout time.Duration
-	logic       func([]byte) ([]byte, error)
+	logic       func(string, []byte) ([]byte, error)
 	semaphore   *concurrency.Semaphore
 	log         *slog.Logger
 }
@@ -61,7 +61,7 @@ func NewServer(
 	return server, nil
 }
 
-func (s *Server) Run(ctx context.Context, logic func([]byte) ([]byte, error)) error {
+func (s *Server) Run(ctx context.Context, logic func(string, []byte) ([]byte, error)) error {
 	done := make(chan struct{})
 	s.logic = logic
 
@@ -130,7 +130,8 @@ func (s *Server) handler(ctx context.Context, connection net.Conn) {
 			return
 		}
 
-		response, err := s.logic(buffer[:n])
+		client := connection.RemoteAddr().String()
+		response, err := s.logic(client, buffer[:n])
 		if err != nil {
 			s.log.Error("failed to execute logic", slog.Any("error", err))
 			return

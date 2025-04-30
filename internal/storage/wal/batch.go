@@ -4,6 +4,7 @@ import "github.com/DaniilZ77/InMemDB/internal/compute/parser"
 
 type Command struct {
 	LSN         int
+	TxID        int64
 	CommandType int
 	Args        []string
 }
@@ -19,9 +20,10 @@ func NewBatch(batchSize int) *Batch {
 	return &Batch{batchSize: batchSize, doneChannel: make(chan bool)}
 }
 
-func (b *Batch) AppendCommand(command *parser.Command) {
+func (b *Batch) AppendCommand(txID int64, command *parser.Command) {
 	b.commands = append(b.commands, Command{
 		LSN:         b.lsn,
+		TxID:        txID,
 		CommandType: int(command.Type),
 		Args:        command.Args,
 	})

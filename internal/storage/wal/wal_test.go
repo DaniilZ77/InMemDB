@@ -42,6 +42,7 @@ func TestSave_Timeout(t *testing.T) {
 		{Type: parser.DEL, Args: []string{"name"}},
 		{Type: parser.GET, Args: []string{"name"}},
 	}
+	const txID = 1
 
 	var commandsCount atomic.Int32
 	logsWriter.EXPECT().WriteLogs(mock.MatchedBy(func(commands []Command) bool {
@@ -55,7 +56,7 @@ func TestSave_Timeout(t *testing.T) {
 	for i := range len(parserCommands) {
 		go func() {
 			defer wg.Done()
-			res := wal.Save(&parserCommands[i])
+			res := wal.Save(txID, &parserCommands[i])
 			assert.True(t, res)
 		}()
 	}
@@ -70,7 +71,10 @@ func TestSave_BatchOverflow(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	const batchSize = 3
+	const (
+		batchSize = 3
+		txID      = 1
+	)
 	wal, _, logsWriter := newTestWal(t, ctx, batchSize, time.Hour)
 	parserCommands := []parser.Command{
 		{Type: parser.SET, Args: []string{"name", "Daniil"}},
@@ -87,7 +91,7 @@ func TestSave_BatchOverflow(t *testing.T) {
 	for i := range batchSize {
 		go func() {
 			defer wg.Done()
-			res := wal.Save(&parserCommands[i])
+			res := wal.Save(txID, &parserCommands[i])
 			assert.True(t, res)
 		}()
 	}
@@ -104,7 +108,8 @@ func TestSave_Error(t *testing.T) {
 	wal, _, logsWriter := newTestWal(t, ctx, 10, 500*time.Millisecond)
 	logsWriter.EXPECT().WriteLogs(mock.Anything).Return(errors.New("write error")).Once()
 
-	res := wal.Save(&parser.Command{
+	const txID = 1
+	res := wal.Save(txID, &parser.Command{
 		Type: parser.SET,
 		Args: []string{"name", "Daniil"},
 	})
@@ -127,9 +132,10 @@ func TestSave_ContextCancel(t *testing.T) {
 	wg := sync.WaitGroup{}
 	wg.Add(1)
 
+	const txID = 1
 	go func() {
 		defer wg.Done()
-		res := wal.Save(&parserCommands[0])
+		res := wal.Save(txID, &parserCommands[0])
 		assert.True(t, res)
 	}()
 	time.Sleep(100 * time.Millisecond)

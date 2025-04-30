@@ -28,7 +28,7 @@ func TestServer(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
-	go server.Run(ctx, func(b []byte) ([]byte, error) { // nolint
+	go server.Run(ctx, func(_ string, b []byte) ([]byte, error) { // nolint
 		return []byte("OK"), nil
 	})
 	time.Sleep(100 * time.Millisecond)
