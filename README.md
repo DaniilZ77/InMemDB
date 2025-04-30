@@ -25,12 +25,12 @@
 ```ebnf
 query          = set_command | get_command | del_command | begin_command | commit_command | rollback_command
 
-set_command    = SET argument argument
-get_command    = GET argument
-del_command    = DEL argument
-begin_command  = BEGIN
-commit_command = COMMIT
-rollback_command = ROLLBACK
+set_command    = "SET" argument argument
+get_command    = "GET" argument
+del_command    = "DEL" argument
+begin_command  = "BEGIN"
+commit_command = "COMMIT"
+rollback_command = "ROLLBACK"
 
 argument       = punctuation | letter | digit { punctuation | letter | digit }
 
